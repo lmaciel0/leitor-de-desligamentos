@@ -81,3 +81,7 @@ npm run dev
 ## Observações
 
 O aplicativo não inventa valores ausentes. Um CPF com menos de 11 dígitos, ou qualquer campo obrigatório não identificado, marca o registro como `REVISAR` para correção manual.
+
+## Licença
+
+Distribuído sob a licença MIT. Veja o arquivo [LICENSE](LICENSE).
