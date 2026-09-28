@@ -1,0 +1,44 @@
+# Java/Maven
+target/
+.classpath
+.project
+.settings/
+*.class
+*.jar
+*.war
+*.ear
+.factorypath
+.vscode-jdt/
+*.log
+
+# Node.js
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.pdf
+~$*
+
+# Tools / local
+.tools/
+local-config.json
+debug-logs/
+logs/

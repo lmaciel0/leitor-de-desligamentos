@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { font-family: 'Nunito Sans', sans-serif; color: #243447; background: #f7fafc; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.app-shell { background: radial-gradient(circle at 85% 0%, #e3f2fd 0, transparent 28rem), #f7fafc; }
+h1, h2, p { margin: 0; }
+h1 { color: #1565c0; font-size: clamp(2rem, 5vw, 2.5rem); font-weight: 700; line-height: 1.1; }
+h2 { color: #263238; font-size: 1rem; font-weight: 700; }
+.eyebrow { color: #607d8b; font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.surface-card { border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 4px 14px rgba(30, 64, 90, .06); padding: 20px; }
+.section-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.section-heading > div:nth-child(2) { flex: 1; }
+.icon-badge { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 8px; color: #1976d2; background: #e3f2fd; }
+.count-badge, .status-chip { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; background: #e8f5e9; color: #388e3c; font-size: .75rem; font-weight: 700; padding: 5px 9px; }
+.upload-zone { display: flex; min-height: 134px; cursor: pointer; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 1px dashed #90caf9; border-radius: 8px; color: #1976d2; background: #fafdff; text-align: center; }
+.file-pill { display: flex; max-width: 100%; align-items: center; gap: 6px; border-radius: 999px; background: #e3f2fd; color: #1565c0; font-size: .78rem; padding: 6px 9px; }
+.file-pill button { color: #5c6f82; }
+.outline-button, .primary-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 8px; font-size: .82rem; font-weight: 700; padding: 10px 15px; }
+.outline-button { border: 1px solid #b0bec5; color: #455a64; background: transparent; }
+.outline-button:hover { background: #f1f5f9; }
+.primary-button { min-width: 150px; color: #fff; background: #1976d2; box-shadow: 0 3px 8px rgba(25, 118, 210, .25); }
+.primary-button:hover { background: #1565c0; }
+.primary-button:disabled, .outline-button:disabled { opacity: .6; cursor: not-allowed; }
+.error-message { margin-top: 10px; color: #d32f2f; font-size: .82rem; text-align: center; }
+.metric { border: 1px solid #d9e2e8; border-radius: .5rem; padding: .8rem; }
+.metric strong { display: block; color: #1565c0; font-size: 1.6rem; line-height: 1.2; }
+.metric span { color: #607d8b; font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.filter-select { width: 100%; min-height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; padding: 8px; font-size: .85rem; }
+.filter-select:focus { border-color: #1976d2; outline: 0; box-shadow: 0 0 0 3px #e3f2fd; }
+.table-wrap { overflow-x: auto; }
+.result-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .82rem; }
+.result-table th { background: #e3f2fd; color: #37536b; font-size: .72rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+.result-table th, .result-table td { border-bottom: 1px solid #edf2f7; padding: 10px 12px; }
+.result-table tbody tr:nth-child(even) { background: #fafafa; }
+.cell-input { width: 100%; min-width: 8rem; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; font-size: .82rem; }
+.cell-input:focus { border-color: #1976d2; outline: 0; box-shadow: 0 0 0 3px #e3f2fd; }
+.status-label { display: inline-flex; align-items: center; gap: 6px; font-size: .74rem; font-weight: 700; white-space: nowrap; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.status-label.status-ok { color: #388e3c; }
+.status-label.status-revisar { color: #f57f17; }
+.status-dot.status-ok { background: #388e3c; }
+.status-dot.status-revisar { background: #f57f17; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; color: #455a64; font-size: .85rem; }
+@media (max-width: 767px) { .primary-button, .outline-button { width: 100%; } }
