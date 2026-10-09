@@ -51,6 +51,11 @@ describe('BarraExportar', () => {
     expect(vi.mocked(gerarXlsx).mock.calls[1][0].map((r) => r.id)).toEqual([2]);
   });
 
+  it('fica numa região nomeada, para quem navega por landmarks', () => {
+    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} />);
+    expect(screen.getByRole('region', { name: 'Exportar resultados' })).toBeInTheDocument();
+  });
+
   it('avisa que o XLSX é o formato seguro para CPF e NIS', () => {
     render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} />);
     expect(screen.getByText(/Prefira o XLSX/)).toBeInTheDocument();

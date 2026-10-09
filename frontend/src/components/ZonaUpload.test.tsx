@@ -23,12 +23,12 @@ describe('ZonaUpload', () => {
     expect(onAdicionar.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.pdf', 'b.pdf']);
   });
 
-  it('ao soltar arquivos aceita só PDFs', () => {
+  it('ao soltar arquivos repassa todos; quem decide o que é PDF é o App, que avisa o que ignorar', () => {
     const onAdicionar = vi.fn();
     render(<ZonaUpload arquivos={[]} onAdicionar={onAdicionar} onRemover={() => {}} />);
     const zona = screen.getByTestId('zona-upload');
     const texto = new File(['x'], 'nota.txt', { type: 'text/plain' });
     fireEvent.drop(zona, { dataTransfer: { files: [pdf('a.pdf'), texto] } });
-    expect(onAdicionar.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.pdf']);
+    expect(onAdicionar.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.pdf', 'nota.txt']);
   });
 });

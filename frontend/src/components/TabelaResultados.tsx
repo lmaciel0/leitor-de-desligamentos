@@ -39,10 +39,11 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
   return (
     <div className="max-h-[70vh] overflow-auto rounded-md border border-denim/30 bg-white">
       <table className="w-full border-collapse text-left text-sm">
+        <caption className="sr-only">Resultados do processamento</caption>
         <thead>
           <tr className="text-suave">
             {['Arquivo', 'Referência', ...CAMPOS_EDITAVEIS.map((campo) => TITULOS[campo]), 'Status'].map((titulo) => (
-              <th key={titulo} className="sticky top-0 whitespace-nowrap border-b border-denim/30 bg-white px-3 py-3 font-semibold">
+              <th key={titulo} scope="col" className="sticky top-0 whitespace-nowrap border-b border-denim/30 bg-white px-3 py-3 font-semibold">
                 {titulo}
               </th>
             ))}
@@ -63,7 +64,7 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
                     <td key={campo} className="px-1 py-1">
                       <input
                         className={`campo-celula ${CAMPOS_NUMERICOS.includes(campo) ? 'tabular' : ''} ${CAMPOS_LONGOS.includes(campo) ? 'min-w-[22rem]' : ''}`}
-                        aria-label={`${campo} de ${registro.arquivo}`}
+                        aria-label={`${TITULOS[campo]} de ${registro.arquivo}`}
                         value={registro[campo]}
                         onFocus={() => onIniciarEdicao(registro.id)}
                         onBlur={(evento) => {
@@ -80,6 +81,7 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
                       <button
                         type="button"
                         aria-expanded={aberto}
+                        aria-controls={`pendencias-${registro.id}`}
                         onClick={() => alternar(registro.id)}
                         className="rounded px-2 py-1 text-eclipse underline decoration-eclipse/40 underline-offset-4"
                       >
@@ -96,7 +98,7 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
                 {revisar && aberto && (
                   <tr className="border-b border-denim/15 bg-honey-claro">
                     <td colSpan={COLUNAS} className="px-3 pb-3 pl-6">
-                      <ul aria-label={`Pendências de ${registro.arquivo}`} className="list-disc pl-5 text-sm">
+                      <ul id={`pendencias-${registro.id}`} aria-label={`Pendências de ${registro.arquivo}`} className="list-disc pl-5 text-sm">
                         {registro.inconsistencias.map((pendencia) => (
                           <li key={pendencia}>{pendencia}</li>
                         ))}

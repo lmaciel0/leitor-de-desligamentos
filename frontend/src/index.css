@@ -18,7 +18,7 @@
 
   .botao-primario,
   .botao-secundario {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold;
   }
   .botao-primario { @apply bg-eclipse text-white hover:bg-tinta; }
   .botao-secundario { @apply border border-denim bg-white text-eclipse hover:bg-denim-claro; }
@@ -30,8 +30,4 @@
   }
   .campo-celula:hover { @apply border-denim/40 bg-white; }
   .campo-celula:focus { @apply border-denim bg-white; }
-
-  .menu-filtro > summary { @apply flex cursor-pointer list-none items-center gap-2 rounded-md border border-denim/40 bg-white px-3 py-2 text-sm text-eclipse; }
-  .menu-filtro > summary::-webkit-details-marker { display: none; }
-  .menu-filtro[open] > summary { @apply border-denim; }
 }
