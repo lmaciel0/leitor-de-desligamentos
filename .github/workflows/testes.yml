@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# O workflow só lê o código: o token do GitHub não precisa de mais permissões.
+permissions:
+  contents: read
+
 jobs:
   frontend:
     runs-on: ubuntu-latest

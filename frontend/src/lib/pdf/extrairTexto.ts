@@ -27,9 +27,9 @@ export async function extrairTexto(pdf: ArrayBuffer, opcoes: OpcoesDeLeitura = {
   const { maxPaginas, signal } = opcoes;
   if (signal?.aborted) throw signal.reason;
   const { getDocument } = await carregarPdfjs();
-  // Defesa em profundidade: não carrega as fontes do PDF no navegador (só servem para desenhar a
-  // página). O pdf.js 6 já não usa eval, e o CSP também o bloquearia.
-  const tarefa = getDocument({ data: new Uint8Array(pdf), disableFontFace: true });
+  // Só extraímos texto: o pdf.js não desenha a página nem carrega fontes nela. Ele também não usa
+  // eval (o CSP bloquearia de qualquer forma).
+  const tarefa = getDocument({ data: new Uint8Array(pdf) });
 
   async function ler(): Promise<string> {
     const documento = await tarefa.promise;
