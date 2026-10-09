@@ -1,7 +1,8 @@
-import { getDocument } from 'pdfjs-dist';
+import { carregarPdfjs } from './carregarPdfjs';
 import { montarLinhas, type ItemTexto } from './montarLinhas';
 
 export async function extrairTexto(pdf: ArrayBuffer): Promise<string> {
+  const { getDocument } = await carregarPdfjs();
   const tarefa = getDocument({ data: new Uint8Array(pdf) });
   try {
     const documento = await tarefa.promise;
