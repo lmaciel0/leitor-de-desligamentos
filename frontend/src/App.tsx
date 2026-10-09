@@ -1,4 +1,4 @@
-import { LoaderCircle, Play, Trash2 } from 'lucide-react';
+import { FolderOpen, LoaderCircle, Play, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvisoReprocessar } from './components/AvisoReprocessar';
 import { BarraExportar } from './components/BarraExportar';
@@ -8,9 +8,11 @@ import { Filtros } from './components/Filtros';
 import { TabelaResultados } from './components/TabelaResultados';
 import { ZonaUpload } from './components/ZonaUpload';
 import { ehPdf, separarDuplicados } from './lib/arquivos';
+import { baixarBlob } from './lib/exportar/baixar';
 import { normalizarCampo, recalcular } from './lib/parser/campos';
 import { processarLote } from './lib/processar';
 import { aplicarTema, salvarTema, temaInicial, type Tema } from './lib/tema';
+import { descreverData, gerarTrabalho, lerTrabalho, nomeDoArquivoDeTrabalho } from './lib/trabalho';
 import type { CampoConferencia, CampoEditavel, DesligamentoRecord, Status } from './tipos';
 
 /** Os selecionados entram na lista mesmo que uma edição tenha eliminado o valor, para o usuário poder desmarcá-los. */
@@ -19,6 +21,11 @@ function valoresUnicos(registros: DesligamentoRecord[], campo: 'municipio' | 'mo
     a.localeCompare(b, 'pt-BR'),
   );
 }
+
+/** Um trabalho de 5000 registros fica bem abaixo disso; acima, nem tentamos ler. */
+const MAX_MB_TRABALHO = 50;
+
+type TrabalhoLido = ReturnType<typeof lerTrabalho>;
 
 function plural(quantidade: number, singular: string, pluralDaPalavra: string): string {
   return quantidade === 1 ? singular : pluralDaPalavra;
@@ -46,6 +53,7 @@ export default function App() {
   const [idEmEdicao, setIdEmEdicao] = useState<number | null>(null);
   const [editadas, setEditadas] = useState<Set<number>>(new Set());
   const [confirmando, setConfirmando] = useState(false);
+  const [trabalhoPendente, setTrabalhoPendente] = useState<TrabalhoLido | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0 });
   const [erro, setErro] = useState('');
@@ -54,6 +62,7 @@ export default function App() {
   const [tema, setTema] = useState<Tema>(temaInicial);
   const controladorRef = useRef<AbortController | null>(null);
   const botaoProcessar = useRef<HTMLButtonElement>(null);
+  const entradaTrabalho = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     aplicarTema(tema);
@@ -98,6 +107,7 @@ export default function App() {
 
   /** Se já há resultados, reprocessar os substitui e descarta as edições: pede confirmação antes. */
   function pedirProcessamento() {
+    setTrabalhoPendente(null);
     if (registros.length > 0 && arquivos.length > 0) {
       setConfirmando(true);
       return;
@@ -149,11 +159,54 @@ export default function App() {
     }
   }
 
+  function salvarTrabalho() {
+    const agora = new Date();
+    baixarBlob(new Blob([gerarTrabalho(registros, agora)], { type: 'application/json' }), nomeDoArquivoDeTrabalho(agora));
+    setAviso('Trabalho salvo. O arquivo contém CPF e NIS: guarde-o em local seguro.');
+  }
+
+  async function escolherTrabalho(arquivo: File | undefined) {
+    if (!arquivo) return;
+    setErro('');
+    try {
+      if (arquivo.size > MAX_MB_TRABALHO * 1024 * 1024) {
+        throw new Error(`o arquivo passa de ${MAX_MB_TRABALHO} MB.`);
+      }
+      const lido = lerTrabalho(await arquivo.text());
+      setConfirmando(false);
+      // Com resultados na tela, abrir o trabalho os substitui: pede confirmação antes.
+      if (registros.length > 0) setTrabalhoPendente(lido);
+      else aplicarTrabalho(lido);
+    } catch (falha) {
+      setErro(`Não foi possível abrir o trabalho: ${falha instanceof Error ? falha.message : String(falha)}`);
+    }
+  }
+
+  function aplicarTrabalho({ registros: lidos, salvoEm }: TrabalhoLido) {
+    controladorRef.current?.abort();
+    controladorRef.current = null;
+    setCarregando(false);
+    setTrabalhoPendente(null);
+    setArquivos([]);
+    setRegistros(lidos);
+    setEditadas(new Set());
+    zerarFiltros();
+    // O aviso visível já é uma região status (anunciada); não repetir na região só para leitores de tela.
+    setAnuncio('');
+    setAviso(`Trabalho aberto: ${lidos.length} ${plural(lidos.length, 'registro', 'registros')}, salvo em ${descreverData(salvoEm)}.`);
+  }
+
+  function cancelarAbertura() {
+    setTrabalhoPendente(null);
+    entradaTrabalho.current?.focus();
+  }
+
   function limpar() {
     controladorRef.current?.abort();
     controladorRef.current = null;
     setCarregando(false);
     setConfirmando(false);
+    setTrabalhoPendente(null);
     setArquivos([]);
     setRegistros([]);
     setEditadas(new Set());
@@ -210,9 +263,39 @@ export default function App() {
             <Trash2 size={16} aria-hidden="true" />
             Limpar dados
           </button>
+          <div className="flex flex-col gap-3 sm:ml-auto sm:flex-row">
+            <label className="botao-secundario cursor-pointer focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-denim">
+              <FolderOpen size={16} aria-hidden="true" />
+              Abrir trabalho
+              <input
+                ref={entradaTrabalho}
+                type="file"
+                accept="application/json,.json"
+                className="sr-only"
+                aria-label="Abrir trabalho"
+                onChange={(evento) => {
+                  void escolherTrabalho(evento.target.files?.[0]);
+                  evento.target.value = '';
+                }}
+              />
+            </label>
+            <button type="button" className="botao-secundario" onClick={salvarTrabalho} disabled={registros.length === 0}>
+              <Save size={16} aria-hidden="true" />
+              Salvar trabalho
+            </button>
+          </div>
         </div>
         {confirmando && (
           <AvisoReprocessar linhasEditadas={editadas.size} onConfirmar={() => void processar()} onCancelar={cancelarReprocesso} />
+        )}
+        {trabalhoPendente && (
+          <AvisoReprocessar
+            titulo="Abrir trabalho?"
+            rotuloConfirmar="Abrir trabalho"
+            linhasEditadas={editadas.size}
+            onConfirmar={() => aplicarTrabalho(trabalhoPendente)}
+            onCancelar={cancelarAbertura}
+          />
         )}
         {/* Região só para leitores de tela: anuncia o início e o fim do lote, sem repetir a cada arquivo. */}
         <p role="status" className="sr-only">

@@ -2,11 +2,20 @@ import { useEffect, useRef } from 'react';
 
 interface Props {
   linhasEditadas: number;
+  /** Pergunta do aviso (o padrão é para reprocessar). */
+  titulo?: string;
+  rotuloConfirmar?: string;
   onConfirmar: () => void;
   onCancelar: () => void;
 }
 
-export function AvisoReprocessar({ linhasEditadas, onConfirmar, onCancelar }: Props) {
+export function AvisoReprocessar({
+  linhasEditadas,
+  titulo = 'Processar de novo?',
+  rotuloConfirmar = 'Processar de novo',
+  onConfirmar,
+  onCancelar,
+}: Props) {
   const cancelar = useRef<HTMLButtonElement>(null);
 
   // O foco começa na opção segura.
@@ -30,7 +39,7 @@ export function AvisoReprocessar({ linhasEditadas, onConfirmar, onCancelar }: Pr
       className="mt-4 rounded-md border-2 border-forte bg-superficie p-4"
     >
       <p id="aviso-reprocessar-titulo" className="font-semibold text-forte">
-        Processar de novo?
+        {titulo}
       </p>
       <p id="aviso-reprocessar-texto" className="mt-1 text-sm">
         {`Isto substitui os resultados atuais${perda}.`}
@@ -40,7 +49,7 @@ export function AvisoReprocessar({ linhasEditadas, onConfirmar, onCancelar }: Pr
           Cancelar
         </button>
         <button type="button" className="botao-primario" onClick={onConfirmar}>
-          Processar de novo
+          {rotuloConfirmar}
         </button>
       </div>
     </div>
