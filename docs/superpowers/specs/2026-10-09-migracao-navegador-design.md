@@ -220,3 +220,11 @@ Três colunas com checkbox, preenchidas à mão pelo operador depois do processa
 - **Não influenciam** o status `OK`/`REVISAR` nem a barra de triagem.
 - Exportação (CSV e XLSX): três colunas entre `MOTIVO` e `STATUS`, com os cabeçalhos `MUNICIPIO CONFERE`, `ESTÁ VALIDADO` e `RECEBE CMIC` e os valores `SIM` ou `NÃO`.
 - Marcar um checkbox conta como edição manual no aviso de reprocessar, porque reprocessar zera as marcações.
+
+## 17. Modo escuro (2026-10-09)
+
+- **Botão no cabeçalho**, com nome acessível fixo "Modo escuro" e o estado em `aria-pressed`; alcançável por teclado (Enter e Espaço) e com 44 px de altura.
+- **Escolha do tema.** Na primeira visita vale a preferência do sistema (`prefers-color-scheme`); depois vale a escolha guardada em `localStorage` (só a palavra `claro` ou `escuro`; nenhum dado de PDF). Se o armazenamento estiver bloqueado, a escolha vale só naquela visita.
+- **Sem piscar.** `frontend/public/tema.js`, carregado no `<head>`, aplica a classe `dark` antes de a página aparecer. É um arquivo próprio porque o CSP só permite scripts da própria origem; o `vercel.json` não muda.
+- **Cores por papéis.** O Tailwind passa a usar variáveis CSS (`--fundo`, `--superficie`, `--texto`, `--denim`...) definidas em `:root` e trocadas em `.dark`, com `color-scheme: dark` para os controles nativos. Continuam fixos nos dois temas o cabeçalho (eclipse) e o honey, que segue exclusivo do estado `REVISAR`.
+- **Verificação.** `axe-core` no Chrome real, com o contraste medido nas cores renderizadas: zero violações no tema claro e no escuro, em quatro estados (vazio, resultados com linha expandida, menu de filtro aberto e aviso de reprocessar).

@@ -41,6 +41,30 @@ async function enviarEProcessar(...nomes: string[]) {
 describe('App', () => {
   beforeEach(() => {
     vi.mocked(processarLote).mockReset();
+    window.localStorage.clear();
+    document.documentElement.className = '';
+  });
+
+  it('o botão de modo escuro liga o tema, aplica a classe e guarda a escolha', async () => {
+    render(<App />);
+    const botao = screen.getByRole('button', { name: 'Modo escuro' });
+    expect(botao).toHaveAttribute('aria-pressed', 'false');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    await userEvent.click(botao);
+    expect(botao).toHaveAttribute('aria-pressed', 'true');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(window.localStorage.getItem('tema')).toBe('escuro');
+    await userEvent.click(botao);
+    expect(botao).toHaveAttribute('aria-pressed', 'false');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(window.localStorage.getItem('tema')).toBe('claro');
+  });
+
+  it('abre no tema escuro quando essa foi a escolha guardada', () => {
+    window.localStorage.setItem('tema', 'escuro');
+    render(<App />);
+    expect(screen.getByRole('button', { name: 'Modo escuro' })).toHaveAttribute('aria-pressed', 'true');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
   it('processa os arquivos e mostra a triagem e a tabela', async () => {

@@ -45,13 +45,13 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
   }
 
   return (
-    <div className="max-h-[70vh] overflow-auto rounded-md border border-denim/30 bg-white">
+    <div className="max-h-[70vh] overflow-auto rounded-md border border-denim/30 bg-superficie">
       <table className="w-full border-collapse text-left text-sm">
         <caption className="sr-only">Resultados do processamento</caption>
         <thead>
           <tr className="text-suave">
             {['Arquivo', 'Referência', ...CAMPOS_EDITAVEIS.map((campo) => TITULOS[campo]), ...CAMPOS_CONFERENCIA.map((campo) => TITULOS_CONFERENCIA[campo]), 'Status'].map((titulo) => (
-              <th key={titulo} scope="col" className="sticky top-0 whitespace-nowrap border-b border-denim/30 bg-white px-3 py-3 font-semibold">
+              <th key={titulo} scope="col" className="sticky top-0 whitespace-nowrap border-b border-denim/30 bg-superficie px-3 py-3 font-semibold">
                 {titulo}
               </th>
             ))}
@@ -89,7 +89,7 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
                       <label className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center">
                         <input
                           type="checkbox"
-                          className="h-5 w-5 accent-eclipse"
+                          className="h-5 w-5 accent-acento"
                           aria-label={`${TITULOS_CONFERENCIA[campo]}: ${registro.arquivo}`}
                           checked={registro[campo]}
                           onChange={(evento) => onConferir(registro.id, campo, evento.target.checked)}
@@ -104,7 +104,7 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
                         aria-expanded={aberto}
                         aria-controls={`pendencias-${registro.id}`}
                         onClick={() => alternar(registro.id)}
-                        className="rounded px-2 py-1 text-eclipse underline decoration-eclipse/40 underline-offset-4"
+                        className="rounded px-2 py-1 text-forte underline decoration-forte/40 underline-offset-4"
                       >
                         REVISAR
                         <span className="ml-2 font-normal text-suave">

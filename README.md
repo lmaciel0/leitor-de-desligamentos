@@ -18,6 +18,7 @@ Extrai, revisa e exporta dados de formulários PDF de desligamento do Cartão Ma
 - Barra de triagem que filtra por status, e filtros por município e motivo.
 - Download em XLSX, CSV UTF-8 separado por ponto e vírgula e XLSX só com os registros `REVISAR`. Prefira o XLSX: ao abrir um CSV no Excel, os zeros à esquerda se perdem.
 - Processar de novo, com resultados na tela, pede confirmação: o reprocessamento substitui os resultados e descarta as edições manuais.
+- Modo escuro: botão no cabeçalho. Na primeira visita segue o tema do sistema; depois lembra a sua escolha neste navegador (só o tema fica guardado).
 - Acessível por teclado e leitor de tela (WCAG 2.1 AA; verificado com axe-core nos principais estados).
 - PDFs escaneados (sem texto selecionável) não são lidos: aparecem como `REVISAR` para digitação manual.
 

@@ -24,7 +24,7 @@ function MenuFiltro({ titulo, opcoes, selecionados, aberto, onAlternar, onChange
         aria-expanded={aberto}
         aria-controls={idDoPainel}
         onClick={onAlternar}
-        className="flex items-center gap-2 rounded-md border border-denim bg-white min-h-[44px] px-3 text-sm text-eclipse"
+        className="flex items-center gap-2 rounded-md border border-denim bg-superficie min-h-[44px] px-3 text-sm text-forte"
       >
         {resumo}
         <ChevronDown size={14} aria-hidden="true" />
@@ -34,7 +34,7 @@ function MenuFiltro({ titulo, opcoes, selecionados, aberto, onAlternar, onChange
           id={idDoPainel}
           role="group"
           aria-label={titulo}
-          className="absolute z-20 mt-1 max-h-72 min-w-[16rem] overflow-auto rounded-md border border-denim bg-white p-2 shadow-lg"
+          className="absolute z-20 mt-1 max-h-72 min-w-[16rem] overflow-auto rounded-md border border-denim bg-superficie p-2 shadow-lg"
         >
           {opcoes.length === 0 && <p className="px-2 py-1 text-sm text-suave">Nenhum valor encontrado.</p>}
           {opcoes.map((opcao) => (

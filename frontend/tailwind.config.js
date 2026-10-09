@@ -1,18 +1,34 @@
 /** @type {import('tailwindcss').Config} */
+
+// Cores que mudam entre os temas vêm de variáveis CSS (definidas em src/index.css),
+// com o canal alfa liberado para classes como border-denim/30.
+const papel = (variavel) => `rgb(var(--${variavel}) / <alpha-value>)`;
+
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
+        // Fixas nos dois temas
         eclipse: '#213555',
-        denim: '#4F709C',
         honey: '#E5D283',
-        'honey-claro': '#F6EFC9',
-        'denim-claro': '#E4EBF3',
-        papel: '#F3F5F8',
-        tinta: '#16233A',
-        suave: '#5B6B82',
-        tijolo: '#A33A2E',
+        'sobre-honey': '#213555',
+        // Mudam com o tema
+        papel: papel('fundo'),
+        superficie: papel('superficie'),
+        tinta: papel('texto'),
+        forte: papel('texto-forte'),
+        suave: papel('suave'),
+        denim: papel('denim'),
+        'denim-claro': papel('denim-claro'),
+        'honey-claro': papel('honey-claro'),
+        tijolo: papel('tijolo'),
+        primario: papel('primario'),
+        'primario-hover': papel('primario-hover'),
+        'sobre-primario': papel('sobre-primario'),
+        ok: papel('ok'),
+        anel: papel('anel'),
+        acento: papel('acento'),
       },
       fontFamily: {
         titulo: ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],

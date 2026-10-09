@@ -1,14 +1,16 @@
 import { LoaderCircle, Play, Trash2 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvisoReprocessar } from './components/AvisoReprocessar';
 import { BarraExportar } from './components/BarraExportar';
 import { BarraTriagem } from './components/BarraTriagem';
+import { BotaoTema } from './components/BotaoTema';
 import { Filtros } from './components/Filtros';
 import { TabelaResultados } from './components/TabelaResultados';
 import { ZonaUpload } from './components/ZonaUpload';
 import { ehPdf, separarDuplicados } from './lib/arquivos';
 import { normalizarCampo, recalcular } from './lib/parser/campos';
 import { processarLote } from './lib/processar';
+import { aplicarTema, salvarTema, temaInicial, type Tema } from './lib/tema';
 import type { CampoConferencia, CampoEditavel, DesligamentoRecord, Status } from './tipos';
 
 /** Os selecionados entram na lista mesmo que uma edição tenha eliminado o valor, para o usuário poder desmarcá-los. */
@@ -49,8 +51,19 @@ export default function App() {
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [anuncio, setAnuncio] = useState('');
+  const [tema, setTema] = useState<Tema>(temaInicial);
   const controladorRef = useRef<AbortController | null>(null);
   const botaoProcessar = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    aplicarTema(tema);
+  }, [tema]);
+
+  function alternarTema() {
+    const proximo: Tema = tema === 'escuro' ? 'claro' : 'escuro';
+    setTema(proximo);
+    salvarTema(proximo);
+  }
 
   const visiveis = useMemo(
     () =>
@@ -167,9 +180,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-papel">
       <header className="bg-eclipse text-white">
-        <div className="mx-auto flex max-w-[1400px] flex-col gap-1 px-4 py-6 md:flex-row md:items-end md:justify-between md:px-10">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-6 md:flex-row md:items-end md:justify-between md:px-10">
           <h1 className="text-3xl md:text-4xl">Leitor de desligamentos</h1>
-          <p className="text-sm text-white/80">Seus PDFs não saem deste computador.</p>
+          <div className="flex flex-col gap-3 md:items-end">
+            <BotaoTema escuro={tema === 'escuro'} onAlternar={alternarTema} />
+            <p className="text-sm text-white/80">Seus PDFs não saem deste computador.</p>
+          </div>
         </div>
       </header>
 
@@ -180,7 +196,7 @@ export default function App() {
           onRemover={(indice) => setArquivos((atuais) => atuais.filter((_, posicao) => posicao !== indice))}
         />
         {aviso && (
-          <p role="status" className="mt-3 text-sm text-eclipse">
+          <p role="status" className="mt-3 text-sm text-forte">
             {aviso}
           </p>
         )}

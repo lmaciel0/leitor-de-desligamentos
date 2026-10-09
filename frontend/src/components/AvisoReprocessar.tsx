@@ -27,9 +27,9 @@ export function AvisoReprocessar({ linhasEditadas, onConfirmar, onCancelar }: Pr
       onKeyDown={(evento) => {
         if (evento.key === 'Escape') onCancelar();
       }}
-      className="mt-4 rounded-md border-2 border-eclipse bg-white p-4"
+      className="mt-4 rounded-md border-2 border-forte bg-superficie p-4"
     >
-      <p id="aviso-reprocessar-titulo" className="font-semibold text-eclipse">
+      <p id="aviso-reprocessar-titulo" className="font-semibold text-forte">
         Processar de novo?
       </p>
       <p id="aviso-reprocessar-texto" className="mt-1 text-sm">
