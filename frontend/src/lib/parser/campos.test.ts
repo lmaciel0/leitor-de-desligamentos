@@ -6,6 +6,7 @@ const TEXTO = [
   'MUNICÍPIO: CIDADE EXEMPLO',
   'CPF: 001.234.567-89',
   'NIS: 000123456789',
+  'NIB: 0012345678',
   'NOME DO RESPONSÁVEL FAMILIAR (RF) A SER DESLIGADO: MARIA DA SILVA',
   'MOTIVO DO DESLIGAMENTO',
   '( ) Mudança para outro Estado',
@@ -20,6 +21,7 @@ describe('parseText', () => {
       municipio: 'CIDADE EXEMPLO',
       cpf: '00123456789',
       nis: '000123456789',
+      nib: '0012345678',
       nome: 'MARIA DA SILVA',
       motivo: 'OUTRO: Mudança de renda da família',
     });
@@ -45,8 +47,74 @@ describe('parseText', () => {
     expect(parseText(texto).cpf).toBe('12345678909');
   });
 
-  it('limita o CPF aos 11 primeiros dígitos', () => {
-    expect(parseText('CPF: 123.456.789-0999').cpf).toBe('12345678909');
+  it('mantém todos os dígitos do CPF, mesmo passando de 11, para a revisão apontar o erro', () => {
+    const campos = parseText('CPF: 086378851312');
+    expect(campos.cpf).toBe('086378851312');
+    expect(inconsistencies({ ...campos, municipio: 'C', nis: '1', nib: '1', nome: 'N', motivo: 'M' })).toEqual(['CPF inválido']);
+  });
+
+  it('lê o NIB sem engolir o NIS que vem na mesma linha', () => {
+    const campos = parseText('NIB: 0863785131 NIS:16635480693');
+    expect(campos.nib).toBe('0863785131');
+    expect(campos.nis).toBe('16635480693');
+  });
+
+  it('junta o nome que quebra em duas linhas, mas para no próximo rótulo', () => {
+    const texto = [
+      'NOME DO RESPONSÁVEL FAMILIAR (RF) A SER DESLIGADO: JOANA PEREIRA LIMA',
+      'SOUZA',
+      'NOME NO CARTÃO CMIC: JOANA P LIMA SOUZA',
+    ].join('\n');
+    expect(parseText(texto).nome).toBe('JOANA PEREIRA LIMA SOUZA');
+    const semQuebra = 'NOME DO RESPONSÁVEL FAMILIAR (RF) A SER DESLIGADO: ANA SILVA\nMOTIVO DO DESLIGAMENTO:';
+    expect(parseText(semQuebra).nome).toBe('ANA SILVA');
+  });
+
+  it('OUTRO marcado sem detalhe não pega o texto de outro campo', () => {
+    const texto = [
+      'MOTIVO DO DESLIGAMENTO:',
+      '( ) Processo de fiscalização;',
+      '( X ) OUTRO:_______________',
+      ' DATA EM QUE SAIU DO PERFIL DO CMIC: 01/07/2026',
+    ].join('\n');
+    expect(parseText(texto).motivo).toBe('OUTRO');
+  });
+
+  it('OUTRO marcado com o detalhe na mesma linha', () => {
+    const texto = [
+      'MOTIVO DO DESLIGAMENTO:',
+      '( X ) OUTRO: mudou de cidade_______',
+      ' DATA EM QUE SAIU DO PERFIL DO CMIC: 01/07/2026',
+    ].join('\n');
+    expect(parseText(texto).motivo).toBe('OUTRO: mudou de cidade');
+  });
+
+  it('lê um formulário no layout real (dados fictícios): marcador "( X )", campos lado a lado, nome em duas linhas', () => {
+    const texto = [
+      'FORMULÁRIO DE SOLICITAÇÃO DE DESLIGAMENTO DE BENEFICIÁRIOS',
+      'MUNICÍPIO: CIDADE EXEMPLO',
+      'NOME DO RESPONSÁVEL FAMILIAR (RF) A SER DESLIGADO: JOANA PEREIRA LIMA',
+      'SOUZA',
+      'NOME NO CARTÃO CMIC: JOANA P LIMA SOUZA',
+      'DATA NASC.: 10/08/1990 CPF: 123.456.789-09',
+      'NIB: 1234567890 NIS:00012345678',
+      'NOME DA MÃE: MARIA PEREIRA LIMA',
+      'CADASTRO ATUALIZADO: ( X ) SIM ( ) NÃO DATA DA ÚLTIMA ATUALIZAÇÃO:10/09/2025',
+      ' MOTIVO DO DESLIGAMENTO:',
+      '( ) Renda familiar mensal per capita superior;',
+      '( ) Processo de fiscalização;',
+      '( X ) Mudança para outro Município;',
+      '( ) OUTRO:_______________________________',
+      ' DATA EM QUE SAIU DO PERFIL DO CMIC: 01/07/2026',
+    ].join('\n');
+    expect(parseText(texto)).toEqual({
+      municipio: 'CIDADE EXEMPLO',
+      cpf: '12345678909',
+      nis: '00012345678',
+      nib: '1234567890',
+      nome: 'JOANA PEREIRA LIMA SOUZA',
+      motivo: 'Mudança para outro Município',
+    });
   });
 
   it('devolve o motivo marcado quando não é "outro"', () => {
@@ -66,16 +134,16 @@ describe('parseText', () => {
 
   it('devolve todos os campos vazios para texto vazio', () => {
     const campos = parseText('');
-    expect(campos).toEqual({ municipio: '', cpf: '', nis: '', nome: '', motivo: '' });
-    expect(inconsistencies(campos)).toEqual(['MUNICIPIO', 'CPF', 'NIS', 'NOME', 'MOTIVO']);
+    expect(campos).toEqual({ municipio: '', cpf: '', nis: '', nib: '', nome: '', motivo: '' });
+    expect(inconsistencies(campos)).toEqual(['MUNICIPIO', 'CPF', 'NIS', 'NIB', 'NOME', 'MOTIVO']);
   });
 });
 
 describe('inconsistencies e statusFor', () => {
-  const completo = { municipio: 'OUTRA CIDADE', cpf: '12345678909', nis: '123', nome: 'ANA', motivo: 'Mudança' };
+  const completo = { municipio: 'OUTRA CIDADE', cpf: '12345678909', nis: '123', nib: '456', nome: 'ANA', motivo: 'Mudança' };
 
   it('campo ausente exige revisão', () => {
-    const campos = { ...completo, municipio: '', nis: '', nome: '', motivo: '', cpf: '123' };
+    const campos = { ...completo, municipio: '', nis: '', nib: '', nome: '', motivo: '', cpf: '123' };
     expect(statusFor(campos)).toBe('REVISAR');
   });
 
@@ -100,6 +168,7 @@ describe('recalcular', () => {
       municipio: '',
       cpf: '12345678909',
       nis: '123',
+      nib: '456',
       nome: 'ANA',
       motivo: 'Mudança',
       status: 'REVISAR',
@@ -113,11 +182,15 @@ describe('recalcular', () => {
 });
 
 describe('normalizarCampo', () => {
-  it('cpf: remove pontuação e espaços e limita a 11 dígitos', () => {
+  it('cpf: remove pontuação e espaços e mantém todos os dígitos', () => {
     expect(normalizarCampo('cpf', '123.456.789-09')).toBe('12345678909');
     expect(normalizarCampo('cpf', '123456789-0')).toBe('1234567890');
     expect(normalizarCampo('cpf', ' 12345678901')).toBe('12345678901');
-    expect(normalizarCampo('cpf', '123456789012345')).toBe('12345678901');
+    expect(normalizarCampo('cpf', '123.456.789-01 2')).toBe('123456789012');
+  });
+
+  it('nib: mantém só os dígitos', () => {
+    expect(normalizarCampo('nib', ' 0863-785131 ')).toBe('0863785131');
   });
 
   it('nis: mantém só os dígitos', () => {

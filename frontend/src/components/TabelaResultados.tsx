@@ -12,11 +12,12 @@ const TITULOS: Record<CampoEditavel, string> = {
   municipio: 'Município',
   cpf: 'CPF',
   nis: 'NIS',
+  nib: 'NIB',
   nome: 'Nome',
   motivo: 'Motivo',
 };
 
-const CAMPOS_NUMERICOS: readonly CampoEditavel[] = ['cpf', 'nis'];
+const CAMPOS_NUMERICOS: readonly CampoEditavel[] = ['cpf', 'nis', 'nib'];
 const CAMPOS_LONGOS: readonly CampoEditavel[] = ['nome', 'motivo'];
 const COLUNAS = CAMPOS_EDITAVEIS.length + 3;
 
@@ -54,14 +55,14 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
             return (
               <Fragment key={registro.id}>
                 <tr className={`border-b border-denim/15 ${revisar ? 'bg-honey-claro' : ''}`}>
-                  <td className={`whitespace-nowrap px-3 py-2 ${revisar ? 'shadow-[inset_4px_0_0_#E5D283]' : ''}`}>
+                  <td title={registro.arquivo} className={`max-w-[16rem] truncate whitespace-nowrap px-3 py-2 ${revisar ? 'shadow-[inset_4px_0_0_#E5D283]' : ''}`}>
                     {registro.arquivo}
                   </td>
                   <td className="tabular whitespace-nowrap px-3 py-2">{registro.referencia}</td>
                   {CAMPOS_EDITAVEIS.map((campo) => (
                     <td key={campo} className="px-1 py-1">
                       <input
-                        className={`campo-celula ${CAMPOS_NUMERICOS.includes(campo) ? 'tabular' : ''} ${CAMPOS_LONGOS.includes(campo) ? 'min-w-[16rem]' : ''}`}
+                        className={`campo-celula ${CAMPOS_NUMERICOS.includes(campo) ? 'tabular' : ''} ${CAMPOS_LONGOS.includes(campo) ? 'min-w-[22rem]' : ''}`}
                         aria-label={`${campo} de ${registro.arquivo}`}
                         value={registro[campo]}
                         onFocus={() => onIniciarEdicao(registro.id)}

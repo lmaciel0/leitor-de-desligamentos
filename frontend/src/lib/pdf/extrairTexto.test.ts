@@ -13,6 +13,8 @@ const FORMULARIO: TextoNaPagina[] = [
   { texto: 'NOME DO RESPONSÁVEL FAMILIAR (RF) A SER DESLIGADO:', x: 50, y: 740 },
   { texto: '000123456789', x: 120, y: 760 },
   { texto: 'NIS:', x: 50, y: 760 },
+  { texto: '0012345678', x: 120, y: 790 },
+  { texto: 'NIB:', x: 50, y: 790 },
   { texto: '001.234.567-89', x: 120, y: 780 },
   { texto: 'CPF:', x: 50, y: 780 },
   { texto: 'CIDADE EXEMPLO', x: 120, y: 800 },
@@ -26,6 +28,7 @@ describe('extrairTexto', () => {
       municipio: 'CIDADE EXEMPLO',
       cpf: '00123456789',
       nis: '000123456789',
+      nib: '0012345678',
       nome: 'MARIA DA SILVA',
       motivo: 'OUTRO: Mudança de renda da família',
     });

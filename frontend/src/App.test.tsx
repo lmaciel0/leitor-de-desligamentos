@@ -17,6 +17,7 @@ function registro(id: number, parcial: Partial<DesligamentoRecord> = {}): Deslig
     municipio: 'CIDADE',
     cpf: '12345678909',
     nis: '123',
+    nib: '456',
     nome: 'ANA',
     motivo: 'Mudança',
     status: 'OK',

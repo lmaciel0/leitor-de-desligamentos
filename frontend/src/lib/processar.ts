@@ -18,6 +18,7 @@ function registroVazio(id: number, arquivo: string, referencia: string, problema
     municipio: '',
     cpf: '',
     nis: '',
+    nib: '',
     nome: '',
     motivo: '',
     status: 'REVISAR',

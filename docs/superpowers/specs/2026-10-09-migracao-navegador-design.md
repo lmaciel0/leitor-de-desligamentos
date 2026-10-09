@@ -195,3 +195,12 @@ Antes do passo 5, comparar a saída do parser TS com a do Java sobre os mesmos P
 ## 13. Informação necessária do usuário
 
 Um ou mais PDFs reais do formulário, mantidos fora do repositório, para validar a paridade do parser no passo 5. O PDF sintético dos testes é criado a partir do layout descrito pelos rótulos do próprio parser.
+
+## 14. Ajustes após validar com formulários reais (2026-10-09)
+
+Dois formulários reais (modelos em `archives-models/`, fora do git) foram processados pelo backend Java e pelo parser TypeScript: a saída foi idêntica campo a campo. A comparação também expôs defeitos que o Java já tinha, corrigidos aqui por decisão do usuário:
+
+- **Nome em duas linhas.** O nome do responsável pode quebrar para a linha seguinte ("APARECIDA DOS SANTOS" / "NASCIMENTO"). O parser junta até duas linhas de continuação que só tenham letras e não comecem por um rótulo do formulário.
+- **CPF sem corte.** O CPF mantém todos os dígitos presentes no PDF. Um CPF com mais de 11 dígitos (um dos modelos traz 12) deixa de ser cortado em silêncio e vira `REVISAR` com `CPF inválido`. Ao editar a célula, CPF, NIS e NIB aceitam só dígitos.
+- **Nova coluna NIB.** O NIB (`NIB: 0863785131`, na mesma linha do NIS) entra depois do NIS, na tabela e nas exportações, e é obrigatório para o status `OK`. O cabeçalho exportado passa a ser `ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NIB;NOME;MOTIVO;STATUS`.
+- **Motivo "OUTRO".** O marcador real é `( X )`, com espaços. Para "OUTRO" o detalhe vem da mesma linha (sobre os sublinhados) ou da linha seguinte; sem detalhe o motivo fica só "OUTRO". A seção do motivo termina em "DATA EM QUE SAIU DO PERFIL". Esse caso não pôde ser validado com um formulário real, porque nenhum dos modelos tem "OUTRO" marcado.

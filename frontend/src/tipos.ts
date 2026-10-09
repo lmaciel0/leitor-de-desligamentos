@@ -1,8 +1,8 @@
 export type Status = 'OK' | 'REVISAR';
 
-export type CampoEditavel = 'municipio' | 'cpf' | 'nis' | 'nome' | 'motivo';
+export type CampoEditavel = 'municipio' | 'cpf' | 'nis' | 'nib' | 'nome' | 'motivo';
 
-export const CAMPOS_EDITAVEIS: readonly CampoEditavel[] = ['municipio', 'cpf', 'nis', 'nome', 'motivo'];
+export const CAMPOS_EDITAVEIS: readonly CampoEditavel[] = ['municipio', 'cpf', 'nis', 'nib', 'nome', 'motivo'];
 
 export type CamposDesligamento = Record<CampoEditavel, string>;
 

@@ -13,6 +13,7 @@ function registro(parcial: Partial<DesligamentoRecord>): DesligamentoRecord {
     municipio: 'CIDADE',
     cpf: '12345678909',
     nis: '123',
+    nib: '456',
     nome: 'ANA',
     motivo: 'Mudança',
     status: 'OK',

@@ -20,6 +20,7 @@ function registro(id: number, status: 'OK' | 'REVISAR'): DesligamentoRecord {
     municipio: 'C',
     cpf: '12345678909',
     nis: '1',
+    nib: '2',
     nome: 'N',
     motivo: 'M',
     status,

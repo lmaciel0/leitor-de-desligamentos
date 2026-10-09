@@ -13,6 +13,7 @@ function registro(parcial: Partial<DesligamentoRecord> = {}): DesligamentoRecord
     municipio: 'CIDADE EXEMPLO',
     cpf: '00123456789',
     nis: '000123456789',
+    nib: '0012345678',
     nome: 'MARIA DA SILVA',
     motivo: 'OUTRO: Mudança',
     status: 'OK',
@@ -24,9 +25,9 @@ function registro(parcial: Partial<DesligamentoRecord> = {}): DesligamentoRecord
 describe('gerarCsv', () => {
   it('começa com BOM e o cabeçalho esperado, separado por ponto e vírgula', () => {
     const csv = gerarCsv([registro()]);
-    expect(csv.startsWith('﻿ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NOME;MOTIVO;STATUS\n')).toBe(true);
+    expect(csv.startsWith('﻿ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NIB;NOME;MOTIVO;STATUS\n')).toBe(true);
     expect(csv.split('\n')[1]).toBe(
-      'a.pdf;17/09/2026;CIDADE EXEMPLO;00123456789;000123456789;MARIA DA SILVA;OUTRO: Mudança;OK',
+      'a.pdf;17/09/2026;CIDADE EXEMPLO;00123456789;000123456789;0012345678;MARIA DA SILVA;OUTRO: Mudança;OK',
     );
   });
 
@@ -57,7 +58,7 @@ describe('gerarCsv', () => {
   });
 
   it('gera apenas o cabeçalho para lista vazia', () => {
-    expect(gerarCsv([])).toBe('﻿ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NOME;MOTIVO;STATUS');
+    expect(gerarCsv([])).toBe('﻿ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NIB;NOME;MOTIVO;STATUS');
   });
 });
 
@@ -86,7 +87,7 @@ describe('gerarXlsx', () => {
   it('inclui o cabeçalho e uma linha por registro', async () => {
     const { arquivos } = await abrir([registro(), registro({ id: 2, arquivo: 'b.pdf' })]);
     const textos = strFromU8(arquivos['xl/sharedStrings.xml']);
-    for (const titulo of ['ARQUIVO', 'Referencia', 'MUNICIPIO', 'CPF', 'NIS', 'NOME', 'MOTIVO', 'STATUS']) {
+    for (const titulo of ['ARQUIVO', 'Referencia', 'MUNICIPIO', 'CPF', 'NIS', 'NIB', 'NOME', 'MOTIVO', 'STATUS']) {
       expect(textos).toContain(`<t>${titulo}</t>`);
     }
     expect(textos).toContain('<t>b.pdf</t>');
