@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// O Vitest roda a partir de frontend/.
-const codigo = readFileSync(join(process.cwd(), 'public', 'compat.js'), 'utf-8');
+// Caminho relativo a este arquivo (e não ao diretório atual), com a string de import.meta.url:
+// no ambiente jsdom, o URL global é o do jsdom e o fileURLToPath do Node o recusa.
+const codigo = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'compat.js'), 'utf-8');
 const executar = () => new Function(codigo)();
 const janela = window as Window & { __navegadorIncompativel?: boolean };
 
