@@ -35,3 +35,7 @@ logs/
 
 # Modelos de formulários reais (dados pessoais): nunca versionar
 archives-models/
+
+# Playwright
+test-results/
+playwright-report/
