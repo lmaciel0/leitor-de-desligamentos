@@ -113,3 +113,35 @@ describe('processarLote', () => {
     expect(await processarLote([], new Date())).toEqual([]);
   });
 });
+
+describe('processarArquivo com limites', () => {
+  it('PDF maior que 20 MB vira REVISAR sem ser lido', async () => {
+    const grande = new File([new Uint8Array(21 * 1024 * 1024)], 'grande.pdf', { type: 'application/pdf' });
+    const registro = await processarArquivo(1, grande, '09/10/2026');
+    expect(registro).toMatchObject({ status: 'REVISAR', inconsistencias: ['PDF maior que 20 MB'] });
+  });
+
+  it('PDF com mais de 10 páginas vira REVISAR', async () => {
+    const onzePaginas = Array.from({ length: 11 }, () => FORMULARIO);
+    const registro = await processarArquivo(1, await pdfFile('longo.pdf', onzePaginas), '09/10/2026');
+    expect(registro).toMatchObject({ status: 'REVISAR', cpf: '', inconsistencias: ['PDF com mais de 10 páginas'] });
+  });
+
+  it('PDF que passa do tempo limite vira REVISAR com o motivo', async () => {
+    const registro = await processarArquivo(1, await pdfFile('lento.pdf', [FORMULARIO]), '09/10/2026', { tempoMaximoMs: 0 });
+    expect(registro.status).toBe('REVISAR');
+    expect(registro.inconsistencias).toEqual(['PDF demorou mais de 0 s para ser lido']);
+  });
+
+  it('um PDF que estoura o limite não impede o próximo do lote', async () => {
+    const arquivos = [
+      new File([new Uint8Array(21 * 1024 * 1024)], 'grande.pdf', { type: 'application/pdf' }),
+      await pdfFile('ok.pdf', [FORMULARIO]),
+    ];
+    const registros = await processarLote(arquivos, new Date(2026, 9, 9));
+    expect(registros.map((r) => [r.arquivo, r.status, r.inconsistencias])).toEqual([
+      ['grande.pdf', 'REVISAR', ['PDF maior que 20 MB']],
+      ['ok.pdf', 'OK', []],
+    ]);
+  });
+});

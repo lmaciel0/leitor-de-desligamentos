@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { criarPdf, type TextoNaPagina } from '../../testes/criarPdf';
 import { parseText } from '../parser/campos';
-import { extrairTexto } from './extrairTexto';
+import { extrairTexto, LimiteExcedido } from './extrairTexto';
 
 /** Formulário sintético: rótulos à esquerda, valores em outra coluna, desenhados fora de ordem. */
 const FORMULARIO: TextoNaPagina[] = [
@@ -47,5 +47,23 @@ describe('extrairTexto', () => {
 
   it('rejeita bytes que não são um PDF', async () => {
     await expect(extrairTexto(new Uint8Array([1, 2, 3]).buffer)).rejects.toThrow();
+  });
+});
+
+describe('extrairTexto com limites', () => {
+  it('recusa PDF com mais páginas que o limite', async () => {
+    const onzePaginas = Array.from({ length: 11 }, (_, i) => [{ texto: `PAGINA ${i + 1}`, x: 50, y: 800 }]);
+    await expect(extrairTexto(await criarPdf(onzePaginas), { maxPaginas: 10 })).rejects.toThrow('PDF com mais de 10 páginas');
+    await expect(extrairTexto(await criarPdf(onzePaginas), { maxPaginas: 10 })).rejects.toBeInstanceOf(LimiteExcedido);
+  });
+
+  it('aceita PDF no limite exato de páginas', async () => {
+    const dezPaginas = Array.from({ length: 10 }, (_, i) => [{ texto: `PAGINA ${i + 1}`, x: 50, y: 800 }]);
+    expect(await extrairTexto(await criarPdf(dezPaginas), { maxPaginas: 10 })).toContain('PAGINA 10');
+  });
+
+  it('para a leitura quando o sinal é abortado, com o motivo do sinal', async () => {
+    const motivo = new LimiteExcedido('parou');
+    await expect(extrairTexto(await criarPdf([FORMULARIO]), { signal: AbortSignal.abort(motivo) })).rejects.toBe(motivo);
   });
 });

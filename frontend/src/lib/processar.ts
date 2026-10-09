@@ -1,8 +1,18 @@
 import type { DesligamentoRecord } from '../tipos';
-import { extrairTexto } from './pdf/extrairTexto';
+import { reiniciarWorker } from './pdf/carregarPdfjs';
+import { extrairTexto, LimiteExcedido } from './pdf/extrairTexto';
 import { inconsistencies, parseText } from './parser/campos';
 
 export const MENSAGEM_PDF_ESCANEADO = 'PDF sem texto selecionável (escaneado)';
+
+/** Limites por arquivo: um PDF enorme ou malformado não pode travar a aba nem o lote. */
+export interface LimitesDoArquivo {
+  maxMegabytes: number;
+  maxPaginas: number;
+  tempoMaximoMs: number;
+}
+
+export const LIMITES_PADRAO: LimitesDoArquivo = { maxMegabytes: 20, maxPaginas: 10, tempoMaximoMs: 20_000 };
 
 export function formatarReferencia(data: Date): string {
   const dia = String(data.getDate()).padStart(2, '0');
@@ -30,10 +40,25 @@ function registroVazio(id: number, arquivo: string, referencia: string, problema
   };
 }
 
-export async function processarArquivo(id: number, arquivo: File, referencia: string): Promise<DesligamentoRecord> {
+export async function processarArquivo(
+  id: number,
+  arquivo: File,
+  referencia: string,
+  limites: Partial<LimitesDoArquivo> = {},
+): Promise<DesligamentoRecord> {
+  const { maxMegabytes, maxPaginas, tempoMaximoMs } = { ...LIMITES_PADRAO, ...limites };
   const nome = arquivo.name?.trim() ? arquivo.name : 'arquivo.pdf';
+  if (arquivo.size > maxMegabytes * 1024 * 1024) {
+    return registroVazio(id, nome, referencia, `PDF maior que ${maxMegabytes} MB`);
+  }
+
+  const relogio = new AbortController();
+  const prazo = setTimeout(
+    () => relogio.abort(new LimiteExcedido(`PDF demorou mais de ${Math.round(tempoMaximoMs / 1000)} s para ser lido`)),
+    tempoMaximoMs,
+  );
   try {
-    const texto = await extrairTexto(await arquivo.arrayBuffer());
+    const texto = await extrairTexto(await arquivo.arrayBuffer(), { maxPaginas, signal: relogio.signal });
     if (!texto.trim()) return registroVazio(id, nome, referencia, MENSAGEM_PDF_ESCANEADO);
     const campos = parseText(texto);
     const problemas = inconsistencies(campos);
@@ -47,8 +72,15 @@ export async function processarArquivo(id: number, arquivo: File, referencia: st
       inconsistencias: problemas,
     };
   } catch (erro) {
+    if (erro instanceof LimiteExcedido) {
+      // Se o tempo estourou, o worker pode estar preso nesse PDF: o próximo arquivo usa um novo.
+      if (relogio.signal.aborted) await reiniciarWorker();
+      return registroVazio(id, nome, referencia, erro.message);
+    }
     const mensagem = erro instanceof Error ? erro.message : String(erro);
     return registroVazio(id, nome, referencia, `erro de processamento: ${mensagem}`);
+  } finally {
+    clearTimeout(prazo);
   }
 }
 
