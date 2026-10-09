@@ -7,13 +7,16 @@ import '@fontsource/ibm-plex-sans/latin-400.css';
 import '@fontsource/ibm-plex-sans/latin-500.css';
 import '@fontsource/ibm-plex-sans/latin-600.css';
 import App from './App';
+import { LimiteDeErro } from './components/LimiteDeErro';
 import './index.css';
 
 // public/compat.js marca a página quando o navegador não tem o mínimo; aí o aviso dele fica na tela.
 if (!(window as Window & { __navegadorIncompativel?: boolean }).__navegadorIncompativel) {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <App />
+      <LimiteDeErro>
+        <App />
+      </LimiteDeErro>
     </React.StrictMode>,
   );
 }
