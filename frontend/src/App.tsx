@@ -9,7 +9,7 @@ import { ZonaUpload } from './components/ZonaUpload';
 import { ehPdf, separarDuplicados } from './lib/arquivos';
 import { normalizarCampo, recalcular } from './lib/parser/campos';
 import { processarLote } from './lib/processar';
-import type { CampoEditavel, DesligamentoRecord, Status } from './tipos';
+import type { CampoConferencia, CampoEditavel, DesligamentoRecord, Status } from './tipos';
 
 /** Os selecionados entram na lista mesmo que uma edição tenha eliminado o valor, para o usuário poder desmarcá-los. */
 function valoresUnicos(registros: DesligamentoRecord[], campo: 'municipio' | 'motivo', selecionados: string[]): string[] {
@@ -158,6 +158,12 @@ export default function App() {
     );
   }
 
+  /** As marcações de conferência são do operador: não mudam o status e contam como edição ao reprocessar. */
+  function conferir(id: number, campo: CampoConferencia, marcado: boolean) {
+    setEditadas((atuais) => new Set(atuais).add(id));
+    setRegistros((atuais) => atuais.map((registro) => (registro.id === id ? { ...registro, [campo]: marcado } : registro)));
+  }
+
   return (
     <div className="min-h-screen bg-papel">
       <header className="bg-eclipse text-white">
@@ -223,6 +229,7 @@ export default function App() {
             <TabelaResultados
               registros={visiveis}
               onEditar={editar}
+              onConferir={conferir}
               onIniciarEdicao={setIdEmEdicao}
               onEncerrarEdicao={() => setIdEmEdicao(null)}
             />

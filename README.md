@@ -9,6 +9,7 @@ Extrai, revisa e exporta dados de formulários PDF de desligamento do Cartão Ma
 - Upload de vários PDFs (seletor ou arrastar e soltar) e leitura de todas as páginas.
 - PDFs repetidos (mesmo conteúdo, mesmo com outro nome) são processados uma só vez, com aviso. Arquivos que não são PDF são ignorados com aviso.
 - Colunas `Arquivo`, `Referencia`, `Município`, `CPF`, `NIS`, `NIB`, `Nome` e `Motivo` em tabela editável.
+- Três conferências feitas à mão, em checkbox: `Município confere`, `Está validado` e `Recebe CMIC`. Elas não mudam o status e saem na exportação como `SIM` ou `NÃO`.
 - Motivo do desligamento: lê a opção marcada com `( X )` entre as várias opções do formulário.
 - Nomes que quebram em duas linhas no formulário são juntados.
 - A data de referência é o dia do processamento.

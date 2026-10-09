@@ -20,6 +20,9 @@ function registro(id: number, parcial: Partial<DesligamentoRecord> = {}): Deslig
     nib: '456',
     nome: 'ANA',
     motivo: 'Mudança',
+    municipioConfere: false,
+    validado: false,
+    recebeCmic: false,
     status: 'OK',
     inconsistencias: [],
     ...parcial,
@@ -138,7 +141,7 @@ describe('App', () => {
     await userEvent.type(await screen.findByLabelText('Nome de 1.pdf'), 'B');
     await userEvent.click(document.body);
     await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
-    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(/descarta as suas edições em 1 linha./);
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription("Isto substitui os resultados atuais e descarta as suas edições em 1 linha.");
   });
 
   it('anuncia o resultado do processamento para leitores de tela', async () => {
@@ -146,6 +149,26 @@ describe('App', () => {
     render(<App />);
     await enviarEProcessar('1.pdf', '2.pdf');
     expect(await screen.findByText('2 arquivos processados: 1 OK, 1 REVISAR.')).toBeInTheDocument();
+  });
+
+  it('marcar as conferências não muda o status nem a triagem', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf');
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Está validado: 2.pdf' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Recebe CMIC: 1.pdf' }));
+    expect(screen.getByRole('checkbox', { name: 'Está validado: 2.pdf' })).toBeChecked();
+    expect(screen.getByRole('button', { name: /1 OK/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /1 REVISAR/ })).toBeInTheDocument();
+  });
+
+  it('marcar uma conferência conta como edição no aviso de reprocessar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), registro(2)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf');
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Município confere: 1.pdf' }));
+    await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription("Isto substitui os resultados atuais e descarta as suas edições em 1 linha.");
   });
 
   it('Limpar dados zera tudo e descarta o resultado de um lote em andamento', async () => {

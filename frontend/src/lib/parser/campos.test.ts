@@ -184,6 +184,9 @@ describe('recalcular', () => {
       nib: '456',
       nome: 'ANA',
       motivo: 'Mudança',
+      municipioConfere: false,
+      validado: false,
+      recebeCmic: false,
       status: 'REVISAR',
       inconsistencias: ['PDF sem texto selecionável (escaneado)'],
     };

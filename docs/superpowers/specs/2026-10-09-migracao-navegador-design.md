@@ -211,3 +211,12 @@ Dois formulários reais (modelos em `archives-models/`, fora do git) foram proce
 - **Reprocessar.** Com resultados na tela, Processar abre um `alertdialog` ("Processar de novo?") que informa quantas linhas editadas serão descartadas. O foco começa em Cancelar e Esc cancela.
 - **Motivo OUTRO.** Se o motivo marcado for apenas "OUTRO" (sem o detalhe, que costuma ser manuscrito), a linha vira `REVISAR` com a pendência "Digite o detalhe do OUTRO". Com o detalhe lido, segue `OK`.
 - **Acessibilidade (WCAG 2.1 AA).** Região `aria-live` para o progresso e o resultado do lote; barra de exportação como região nomeada; legenda e `scope` na tabela; rótulos de célula acentuados ("Município de x.pdf"); `aria-controls` no botão `REVISAR`; menus de filtro como botões com `aria-expanded`, abrindo um por vez e fechando com Esc, clique fora ou Tab; alvos de toque de 44 px (exceto as células editáveis da tabela, com 34 px); bordas dos controles com contraste de 3:1. Verificado com `axe-core` no Chrome real: zero violações em cinco estados.
+
+## 16. Colunas de conferência (2026-10-09)
+
+Três colunas com checkbox, preenchidas à mão pelo operador depois do processamento: `Município confere`, `Está validado` e `Recebe CMIC`.
+
+- Começam desmarcadas e ficam entre `Motivo` e `Status`. Cada checkbox tem rótulo acessível por linha (por exemplo, "Está validado: x.pdf").
+- **Não influenciam** o status `OK`/`REVISAR` nem a barra de triagem.
+- Exportação (CSV e XLSX): três colunas entre `MOTIVO` e `STATUS`, com os cabeçalhos `MUNICIPIO CONFERE`, `ESTÁ VALIDADO` e `RECEBE CMIC` e os valores `SIM` ou `NÃO`.
+- Marcar um checkbox conta como edição manual no aviso de reprocessar, porque reprocessar zera as marcações.

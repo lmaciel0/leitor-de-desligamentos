@@ -1,9 +1,17 @@
 import { Fragment, useState } from 'react';
-import { CAMPOS_EDITAVEIS, type CampoEditavel, type DesligamentoRecord } from '../tipos';
+import {
+  CAMPOS_CONFERENCIA,
+  CAMPOS_EDITAVEIS,
+  TITULOS_CONFERENCIA,
+  type CampoConferencia,
+  type CampoEditavel,
+  type DesligamentoRecord,
+} from '../tipos';
 
 interface Props {
   registros: DesligamentoRecord[];
   onEditar: (id: number, campo: CampoEditavel, valor: string) => void;
+  onConferir: (id: number, campo: CampoConferencia, marcado: boolean) => void;
   onIniciarEdicao: (id: number) => void;
   onEncerrarEdicao: () => void;
 }
@@ -19,9 +27,9 @@ const TITULOS: Record<CampoEditavel, string> = {
 
 const CAMPOS_NUMERICOS: readonly CampoEditavel[] = ['cpf', 'nis', 'nib'];
 const CAMPOS_LONGOS: readonly CampoEditavel[] = ['nome', 'motivo'];
-const COLUNAS = CAMPOS_EDITAVEIS.length + 3;
+const COLUNAS = CAMPOS_EDITAVEIS.length + CAMPOS_CONFERENCIA.length + 3;
 
-export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncerrarEdicao }: Props) {
+export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdicao, onEncerrarEdicao }: Props) {
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
 
   function alternar(id: number) {
@@ -42,7 +50,7 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
         <caption className="sr-only">Resultados do processamento</caption>
         <thead>
           <tr className="text-suave">
-            {['Arquivo', 'Referência', ...CAMPOS_EDITAVEIS.map((campo) => TITULOS[campo]), 'Status'].map((titulo) => (
+            {['Arquivo', 'Referência', ...CAMPOS_EDITAVEIS.map((campo) => TITULOS[campo]), ...CAMPOS_CONFERENCIA.map((campo) => TITULOS_CONFERENCIA[campo]), 'Status'].map((titulo) => (
               <th key={titulo} scope="col" className="sticky top-0 whitespace-nowrap border-b border-denim/30 bg-white px-3 py-3 font-semibold">
                 {titulo}
               </th>
@@ -74,6 +82,19 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
                         }}
                         onChange={(evento) => onEditar(registro.id, campo, evento.target.value)}
                       />
+                    </td>
+                  ))}
+                  {CAMPOS_CONFERENCIA.map((campo) => (
+                    <td key={campo} className="px-1 py-1 text-center">
+                      <label className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center">
+                        <input
+                          type="checkbox"
+                          className="h-5 w-5 accent-eclipse"
+                          aria-label={`${TITULOS_CONFERENCIA[campo]}: ${registro.arquivo}`}
+                          checked={registro[campo]}
+                          onChange={(evento) => onConferir(registro.id, campo, evento.target.checked)}
+                        />
+                      </label>
                     </td>
                   ))}
                   <td className="whitespace-nowrap px-3 py-2 font-semibold">

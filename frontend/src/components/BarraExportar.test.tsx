@@ -23,6 +23,9 @@ function registro(id: number, status: 'OK' | 'REVISAR'): DesligamentoRecord {
     nib: '2',
     nome: 'N',
     motivo: 'M',
+    municipioConfere: false,
+    validado: false,
+    recebeCmic: false,
     status,
     inconsistencias: [],
   };

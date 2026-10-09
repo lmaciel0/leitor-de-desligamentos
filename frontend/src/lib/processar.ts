@@ -10,6 +10,9 @@ export function formatarReferencia(data: Date): string {
   return `${dia}/${mes}/${data.getFullYear()}`;
 }
 
+/** O operador marca estas conferências à mão, depois do processamento. */
+const SEM_CONFERENCIA = { municipioConfere: false, validado: false, recebeCmic: false } as const;
+
 function registroVazio(id: number, arquivo: string, referencia: string, problema: string): DesligamentoRecord {
   return {
     id,
@@ -21,6 +24,7 @@ function registroVazio(id: number, arquivo: string, referencia: string, problema
     nib: '',
     nome: '',
     motivo: '',
+    ...SEM_CONFERENCIA,
     status: 'REVISAR',
     inconsistencias: [problema],
   };
@@ -38,6 +42,7 @@ export async function processarArquivo(id: number, arquivo: File, referencia: st
       arquivo: nome,
       referencia,
       ...campos,
+      ...SEM_CONFERENCIA,
       status: problemas.length === 0 ? 'OK' : 'REVISAR',
       inconsistencias: problemas,
     };

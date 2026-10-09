@@ -16,13 +16,16 @@ function registro(parcial: Partial<DesligamentoRecord>): DesligamentoRecord {
     nib: '456',
     nome: 'ANA',
     motivo: 'Mudança',
+    municipioConfere: false,
+    validado: false,
+    recebeCmic: false,
     status: 'OK',
     inconsistencias: [],
     ...parcial,
   };
 }
 
-const acoes = { onEditar: () => {}, onIniciarEdicao: () => {}, onEncerrarEdicao: () => {} };
+const acoes = { onEditar: () => {}, onConferir: () => {}, onIniciarEdicao: () => {}, onEncerrarEdicao: () => {} };
 
 describe('TabelaResultados', () => {
   it('editar uma célula informa id, campo e valor', async () => {
@@ -86,6 +89,24 @@ describe('TabelaResultados', () => {
     const lista = screen.getByRole('list', { name: 'Pendências de a.pdf' });
     expect(lista.id).not.toBe('');
     expect(botao).toHaveAttribute('aria-controls', lista.id);
+  });
+
+  it('mostra as três colunas de conferência, desmarcadas por padrão e com rótulo por linha', () => {
+    render(<TabelaResultados {...acoes} registros={[registro({})]} />);
+    for (const titulo of ['Município confere', 'Está validado', 'Recebe CMIC']) {
+      expect(screen.getByRole('columnheader', { name: titulo })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: titulo + ': a.pdf' })).not.toBeChecked();
+    }
+  });
+
+  it('marcar uma conferência informa id, campo e novo valor, e reflete o valor recebido', async () => {
+    const onConferir = vi.fn();
+    const { rerender } = render(<TabelaResultados {...acoes} onConferir={onConferir} registros={[registro({})]} />);
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Está validado: a.pdf' }));
+    expect(onConferir).toHaveBeenCalledWith(1, 'validado', true);
+    rerender(<TabelaResultados {...acoes} onConferir={onConferir} registros={[registro({ validado: true })]} />);
+    expect(screen.getByRole('checkbox', { name: 'Está validado: a.pdf' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Recebe CMIC: a.pdf' })).not.toBeChecked();
   });
 
   it('explica quando nenhum registro corresponde aos filtros', () => {
