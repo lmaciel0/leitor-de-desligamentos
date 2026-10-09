@@ -101,4 +101,41 @@ describe('App', () => {
     expect(within(document.body).queryByText('1.pdf')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Processar arquivos/ })).toBeEnabled();
   });
+
+  it('um CPF digitado com pontuação é normalizado e o registro fica OK', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1, { cpf: '', status: 'REVISAR', inconsistencias: ['CPF'] })]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.type(await screen.findByLabelText('cpf de 1.pdf'), '123.456.789-09');
+    expect(screen.getByLabelText('cpf de 1.pdf')).toHaveValue('12345678909');
+    expect(await screen.findByRole('button', { name: /1 OK/ })).toBeInTheDocument();
+  });
+
+  it('um CPF de 11 caracteres com hífen não vira OK', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1, { cpf: '', status: 'REVISAR', inconsistencias: ['CPF'] })]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.type(await screen.findByLabelText('cpf de 1.pdf'), '123456789-0');
+    expect(screen.getByLabelText('cpf de 1.pdf')).toHaveValue('1234567890');
+    expect(await screen.findByRole('button', { name: /1 REVISAR/ })).toBeInTheDocument();
+  });
+
+  it('a opção selecionada de um filtro continua listada depois que a edição a elimina', async () => {
+    vi.mocked(processarLote).mockResolvedValue([
+      registro(1, { municipio: 'CIDADE X' }),
+      registro(2, { municipio: 'CIDADE A' }),
+    ]);
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf');
+    await userEvent.click(await screen.findByText('Município', { selector: 'summary' }));
+    await userEvent.click(screen.getByLabelText('CIDADE X'));
+    const campo = screen.getByLabelText('municipio de 1.pdf');
+    await userEvent.clear(campo);
+    await userEvent.type(campo, 'CIDADE Y');
+    await userEvent.click(document.body);
+    expect(screen.queryByLabelText('municipio de 1.pdf')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('CIDADE X')).toBeChecked();
+    await userEvent.click(screen.getByLabelText('CIDADE X'));
+    expect(screen.getByLabelText('municipio de 1.pdf')).toBeInTheDocument();
+  });
 });

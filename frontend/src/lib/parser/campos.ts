@@ -1,5 +1,6 @@
 import {
   CAMPOS_EDITAVEIS,
+  type CampoEditavel,
   type CamposDesligamento,
   type DesligamentoRecord,
   type Status,
@@ -113,6 +114,13 @@ export function parseText(texto: string): CamposDesligamento {
     nome: extrairNome(entrada),
     motivo: extrairMotivo(entrada),
   };
+}
+
+/** Normaliza o valor digitado numa célula: CPF e NIS aceitam só dígitos (CPF até 11), como o parser os produz. */
+export function normalizarCampo(campo: CampoEditavel, valor: string): string {
+  if (campo === 'cpf') return primeirosDigitos(valor, 11);
+  if (campo === 'nis') return valor.replace(NAO_DIGITOS, '');
+  return valor;
 }
 
 export function inconsistencies(campos: CamposDesligamento): string[] {

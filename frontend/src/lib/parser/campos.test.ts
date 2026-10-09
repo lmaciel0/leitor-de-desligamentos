@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DesligamentoRecord } from '../../tipos';
-import { inconsistencies, parseText, recalcular, statusFor } from './campos';
+import { inconsistencies, normalizarCampo, parseText, recalcular, statusFor } from './campos';
 
 const TEXTO = [
   'MUNICÍPIO: CIDADE EXEMPLO',
@@ -109,5 +109,23 @@ describe('recalcular', () => {
     expect(corrigido.status).toBe('OK');
     expect(corrigido.inconsistencias).toEqual([]);
     expect(recalcular(registro).inconsistencias).toEqual(['MUNICIPIO']);
+  });
+});
+
+describe('normalizarCampo', () => {
+  it('cpf: remove pontuação e espaços e limita a 11 dígitos', () => {
+    expect(normalizarCampo('cpf', '123.456.789-09')).toBe('12345678909');
+    expect(normalizarCampo('cpf', '123456789-0')).toBe('1234567890');
+    expect(normalizarCampo('cpf', ' 12345678901')).toBe('12345678901');
+    expect(normalizarCampo('cpf', '123456789012345')).toBe('12345678901');
+  });
+
+  it('nis: mantém só os dígitos', () => {
+    expect(normalizarCampo('nis', '123.45678.90-1')).toBe('12345678901');
+  });
+
+  it('os demais campos ficam como digitados', () => {
+    expect(normalizarCampo('nome', ' Ana  Maria ')).toBe(' Ana  Maria ');
+    expect(normalizarCampo('motivo', '(X) outro')).toBe('(X) outro');
   });
 });

@@ -37,8 +37,21 @@ describe('TabelaResultados', () => {
     render(<TabelaResultados {...acoes} onIniciarEdicao={onIniciarEdicao} onEncerrarEdicao={onEncerrarEdicao} registros={[registro({})]} />);
     await userEvent.click(screen.getByLabelText('cpf de a.pdf'));
     expect(onIniciarEdicao).toHaveBeenCalledWith(1);
-    await userEvent.tab();
+    await userEvent.click(document.body);
     expect(onEncerrarEdicao).toHaveBeenCalled();
+  });
+
+  it('só encerra a edição quando o foco sai da linha, não ao passar para outra célula da mesma linha', async () => {
+    const onEncerrarEdicao = vi.fn();
+    render(
+      <TabelaResultados {...acoes} onEncerrarEdicao={onEncerrarEdicao} registros={[registro({}), registro({ id: 2, arquivo: 'b.pdf' })]} />,
+    );
+    await userEvent.click(screen.getByLabelText('cpf de a.pdf'));
+    await userEvent.tab();
+    expect(screen.getByLabelText('nis de a.pdf')).toHaveFocus();
+    expect(onEncerrarEdicao).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByLabelText('cpf de b.pdf'));
+    expect(onEncerrarEdicao).toHaveBeenCalledTimes(1);
   });
 
   it('linha REVISAR mostra as pendências ao expandir', async () => {

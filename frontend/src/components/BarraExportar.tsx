@@ -45,6 +45,9 @@ export function BarraExportar({ registros, onErro }: Props) {
           <Download size={16} aria-hidden="true" />
           Baixar somente REVISAR
         </button>
+        <p className="text-sm text-suave sm:ml-auto sm:self-center">
+          Prefira o XLSX para CPF e NIS: ao abrir um CSV, o Excel remove os zeros à esquerda.
+        </p>
       </div>
     </div>
   );

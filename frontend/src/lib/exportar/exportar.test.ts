@@ -42,6 +42,20 @@ describe('gerarCsv', () => {
     expect(csv).toContain('"x\r\ny"');
   });
 
+  it('neutraliza valores que o Excel interpretaria como fórmula', () => {
+    const csv = gerarCsv([registro({ arquivo: '@x.pdf', municipio: '+A', nome: '=1+1', motivo: '-2' })]);
+    expect(csv).toContain("'@x.pdf;");
+    expect(csv).toContain("'+A;");
+    expect(csv).toContain("'=1+1;");
+    expect(csv).toContain("'-2;");
+  });
+
+  it('não altera valores comuns', () => {
+    const csv = gerarCsv([registro()]);
+    expect(csv).toContain(';MARIA DA SILVA;');
+    expect(csv).not.toContain("'");
+  });
+
   it('gera apenas o cabeçalho para lista vazia', () => {
     expect(gerarCsv([])).toBe('﻿ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NOME;MOTIVO;STATUS');
   });

@@ -36,7 +36,7 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-denim/30 bg-white">
+    <div className="max-h-[70vh] overflow-auto rounded-md border border-denim/30 bg-white">
       <table className="w-full border-collapse text-left text-sm">
         <thead>
           <tr className="text-suave">
@@ -65,7 +65,11 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
                         aria-label={`${campo} de ${registro.arquivo}`}
                         value={registro[campo]}
                         onFocus={() => onIniciarEdicao(registro.id)}
-                        onBlur={onEncerrarEdicao}
+                        onBlur={(evento) => {
+                          // Passar para outra célula da mesma linha não encerra a edição.
+                          const linha = evento.currentTarget.closest('tr');
+                          if (!linha?.contains(evento.relatedTarget as Node | null)) onEncerrarEdicao();
+                        }}
                         onChange={(evento) => onEditar(registro.id, campo, evento.target.value)}
                       />
                     </td>

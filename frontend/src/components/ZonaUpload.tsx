@@ -28,7 +28,7 @@ export function ZonaUpload({ arquivos, onAdicionar, onRemover }: Props) {
           setArrastando(false);
           onAdicionar(Array.from(evento.dataTransfer.files).filter(ehPdf));
         }}
-        className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed px-5 py-6 text-eclipse ${
+        className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed px-5 py-6 text-eclipse focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-denim ${
           arrastando ? 'border-eclipse bg-denim-claro' : 'border-denim bg-white'
         }`}
       >

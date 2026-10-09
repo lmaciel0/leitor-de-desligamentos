@@ -5,12 +5,13 @@ import { BarraTriagem } from './components/BarraTriagem';
 import { Filtros } from './components/Filtros';
 import { TabelaResultados } from './components/TabelaResultados';
 import { ZonaUpload } from './components/ZonaUpload';
-import { recalcular } from './lib/parser/campos';
+import { normalizarCampo, recalcular } from './lib/parser/campos';
 import { processarLote } from './lib/processar';
 import type { CampoEditavel, DesligamentoRecord, Status } from './tipos';
 
-function valoresUnicos(registros: DesligamentoRecord[], campo: 'municipio' | 'motivo'): string[] {
-  return [...new Set(registros.map((registro) => registro[campo]).filter(Boolean))].sort((a, b) =>
+/** Os selecionados entram na lista mesmo que uma edição tenha eliminado o valor, para o usuário poder desmarcá-los. */
+function valoresUnicos(registros: DesligamentoRecord[], campo: 'municipio' | 'motivo', selecionados: string[]): string[] {
+  return [...new Set([...registros.map((registro) => registro[campo]).filter(Boolean), ...selecionados])].sort((a, b) =>
     a.localeCompare(b, 'pt-BR'),
   );
 }
@@ -93,7 +94,7 @@ export default function App() {
 
   function editar(id: number, campo: CampoEditavel, valor: string) {
     setRegistros((atuais) =>
-      atuais.map((registro) => (registro.id === id ? recalcular({ ...registro, [campo]: valor }) : registro)),
+      atuais.map((registro) => (registro.id === id ? recalcular({ ...registro, [campo]: normalizarCampo(campo, valor) }) : registro)),
     );
   }
 
@@ -140,8 +141,8 @@ export default function App() {
               onAlternar={(status) => setStatusAtivo((atual) => (atual === status ? null : status))}
             />
             <Filtros
-              municipios={valoresUnicos(registros, 'municipio')}
-              motivos={valoresUnicos(registros, 'motivo')}
+              municipios={valoresUnicos(registros, 'municipio', municipios)}
+              motivos={valoresUnicos(registros, 'motivo', motivos)}
               municipiosSelecionados={municipios}
               motivosSelecionados={motivos}
               onMunicipios={setMunicipios}

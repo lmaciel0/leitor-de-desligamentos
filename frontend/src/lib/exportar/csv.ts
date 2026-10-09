@@ -3,9 +3,13 @@ import { CABECALHO_EXPORTACAO, valoresDaLinha } from './colunas';
 
 const BOM = '﻿';
 
+/** O Excel interpreta como fórmula quem começa com estes caracteres; os valores vêm de PDFs de terceiros. */
+const INICIO_DE_FORMULA = /^[=+\-@\t\r]/;
+
 function escapar(valor: string): string {
-  if (/[;"\r\n]/.test(valor)) return `"${valor.replace(/"/g, '""')}"`;
-  return valor;
+  const seguro = INICIO_DE_FORMULA.test(valor) ? `'${valor}` : valor;
+  if (/[;"\r\n]/.test(seguro)) return `"${seguro.replace(/"/g, '""')}"`;
+  return seguro;
 }
 
 export function gerarCsv(registros: DesligamentoRecord[]): string {
