@@ -4,9 +4,9 @@ import { formatarReferencia, MENSAGEM_PDF_ESCANEADO, processarArquivo, processar
 
 const FORMULARIO: TextoNaPagina[] = [
   { texto: 'MUNICÍPIO: CIDADE EXEMPLO', x: 50, y: 800 },
-  { texto: 'CPF: 001.234.567-89', x: 50, y: 780 },
+  { texto: 'CPF: 001.234.567-97', x: 50, y: 780 },
   { texto: 'NIB: 0012345678', x: 50, y: 770 },
-  { texto: 'NIS: 000123456789', x: 50, y: 760 },
+  { texto: 'NIS: 12345678919', x: 50, y: 760 },
   { texto: 'NOME DO RESPONSÁVEL FAMILIAR (RF) A SER DESLIGADO: MARIA DA SILVA', x: 50, y: 740 },
   { texto: 'MOTIVO DO DESLIGAMENTO', x: 50, y: 700 },
   { texto: '(X) Mudança para outro Estado', x: 50, y: 680 },
@@ -31,8 +31,8 @@ describe('processarArquivo', () => {
       arquivo: 'ok.pdf',
       referencia: '09/10/2026',
       municipio: 'CIDADE EXEMPLO',
-      cpf: '00123456789',
-      nis: '000123456789',
+      cpf: '00123456797',
+      nis: '12345678919',
       nib: '0012345678',
       nome: 'MARIA DA SILVA',
       motivo: 'Mudança para outro Estado',
