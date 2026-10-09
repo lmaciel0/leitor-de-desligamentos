@@ -17,6 +17,7 @@ const TITULOS: Record<CampoEditavel, string> = {
 };
 
 const CAMPOS_NUMERICOS: readonly CampoEditavel[] = ['cpf', 'nis'];
+const CAMPOS_LONGOS: readonly CampoEditavel[] = ['nome', 'motivo'];
 const COLUNAS = CAMPOS_EDITAVEIS.length + 3;
 
 export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncerrarEdicao }: Props) {
@@ -60,7 +61,7 @@ export function TabelaResultados({ registros, onEditar, onIniciarEdicao, onEncer
                   {CAMPOS_EDITAVEIS.map((campo) => (
                     <td key={campo} className="px-1 py-1">
                       <input
-                        className={`campo-celula ${CAMPOS_NUMERICOS.includes(campo) ? 'tabular' : ''}`}
+                        className={`campo-celula ${CAMPOS_NUMERICOS.includes(campo) ? 'tabular' : ''} ${CAMPOS_LONGOS.includes(campo) ? 'min-w-[16rem]' : ''}`}
                         aria-label={`${campo} de ${registro.arquivo}`}
                         value={registro[campo]}
                         onFocus={() => onIniciarEdicao(registro.id)}
