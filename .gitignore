@@ -1,14 +1,4 @@
-# Java/Maven
-target/
-.classpath
-.project
-.settings/
-*.class
-*.jar
-*.war
-*.ear
-.factorypath
-.vscode-jdt/
+# Logs
 *.log
 
 # Node.js
@@ -42,3 +32,6 @@ temp/
 local-config.json
 debug-logs/
 logs/
+
+# Modelos de formulários reais (dados pessoais): nunca versionar
+archives-models/
