@@ -12,12 +12,19 @@ function criarWorker(): Worker {
  * Fora do navegador (testes em Node) não há Worker e o pdf.js usa o worker embutido.
  */
 export function carregarPdfjs(): Promise<Pdfjs> {
-  carregando ??= import('pdfjs-dist/legacy/build/pdf.mjs').then((pdfjs) => {
-    if (typeof Worker !== 'undefined' && !pdfjs.GlobalWorkerOptions.workerPort) {
-      pdfjs.GlobalWorkerOptions.workerPort = criarWorker();
-    }
-    return pdfjs;
-  });
+  carregando ??= import('pdfjs-dist/legacy/build/pdf.mjs').then(
+    (pdfjs) => {
+      if (typeof Worker !== 'undefined' && !pdfjs.GlobalWorkerOptions.workerPort) {
+        pdfjs.GlobalWorkerOptions.workerPort = criarWorker();
+      }
+      return pdfjs;
+    },
+    (erro: unknown) => {
+      // Falhou (rede, ou um deploy novo trocou os arquivos): a próxima chamada tenta de novo.
+      carregando = null;
+      throw erro;
+    },
+  );
   return carregando;
 }
 

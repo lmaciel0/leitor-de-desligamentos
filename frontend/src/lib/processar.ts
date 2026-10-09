@@ -1,5 +1,5 @@
 import type { DesligamentoRecord } from '../tipos';
-import { reiniciarWorker } from './pdf/carregarPdfjs';
+import { carregarPdfjs, reiniciarWorker } from './pdf/carregarPdfjs';
 import { extrairTexto, LimiteExcedido } from './pdf/extrairTexto';
 import { inconsistencies, parseText } from './parser/campos';
 
@@ -53,12 +53,17 @@ export async function processarArquivo(
   }
 
   const relogio = new AbortController();
-  const prazo = setTimeout(
-    () => relogio.abort(new LimiteExcedido(`PDF demorou mais de ${Math.round(tempoMaximoMs / 1000)} s para ser lido`)),
-    tempoMaximoMs,
-  );
+  let prazo: ReturnType<typeof setTimeout> | undefined;
   try {
-    const texto = await extrairTexto(await arquivo.arrayBuffer(), { maxPaginas, signal: relogio.signal });
+    const dados = await arquivo.arrayBuffer();
+    // Carregar o pdf.js (só na primeira vez) não conta no tempo do arquivo: em máquina lenta,
+    // isso faria o primeiro PDF "demorar demais" sem motivo.
+    await carregarPdfjs();
+    prazo = setTimeout(
+      () => relogio.abort(new LimiteExcedido(`PDF demorou mais de ${Math.round(tempoMaximoMs / 1000)} s para ser lido`)),
+      tempoMaximoMs,
+    );
+    const texto = await extrairTexto(dados, { maxPaginas, signal: relogio.signal });
     if (!texto.trim()) return registroVazio(id, nome, referencia, MENSAGEM_PDF_ESCANEADO);
     const campos = parseText(texto);
     const problemas = inconsistencies(campos);
@@ -74,7 +79,13 @@ export async function processarArquivo(
   } catch (erro) {
     if (erro instanceof LimiteExcedido) {
       // Se o tempo estourou, o worker pode estar preso nesse PDF: o próximo arquivo usa um novo.
-      if (relogio.signal.aborted) await reiniciarWorker();
+      if (relogio.signal.aborted) {
+        try {
+          await reiniciarWorker();
+        } catch {
+          // Sem worker novo agora; o próximo arquivo tenta carregar o pdf.js de novo.
+        }
+      }
       return registroVazio(id, nome, referencia, erro.message);
     }
     const mensagem = erro instanceof Error ? erro.message : String(erro);

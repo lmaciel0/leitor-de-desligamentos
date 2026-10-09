@@ -112,3 +112,27 @@ test('salvar e abrir o trabalho mantém edições e conferências', async ({ pag
   await expect(page.getByLabel('Motivo de ok.pdf')).toHaveValue('Motivo corrigido à mão');
   await expect(page.getByRole('checkbox', { name: 'Recebe CMIC: ok.pdf' })).toBeChecked();
 });
+
+test('um PDF que trava o worker não congela o lote: vira REVISAR por tempo e o próximo é lido', async ({ page }, info) => {
+  test.setTimeout(90_000);
+  // Só o primeiro worker trava (um laço ao receber o pedido da página); o worker novo é normal.
+  const travar =
+    "self.addEventListener('message', function (e) { if (e.data && e.data.action === 'GetPage') { var fim = Date.now() + 120000; while (Date.now() < fim) {} } });";
+  let workersCriados = 0;
+  await page.route(/\/assets\/worker-.*\.js$/, async (rota) => {
+    const resposta = await rota.fetch();
+    const corpo = await resposta.text();
+    await rota.fulfill({ response: resposta, body: workersCriados++ === 0 ? `${travar}\n${corpo}` : corpo });
+  });
+  const travado = await criarPdf(info.outputPath('travado.pdf'), linhasDoFormulario({ nome: 'PRIMEIRO ARQUIVO' }));
+  const normal = await criarPdf(info.outputPath('normal.pdf'), linhasDoFormulario({ nome: 'SEGUNDO ARQUIVO' }));
+
+  await page.goto('/');
+  await page.locator('input[type=file][accept*="pdf"]').setInputFiles([travado, normal]);
+  await page.getByRole('button', { name: /Processar arquivos/ }).click();
+  await expect(page.getByRole('group', { name: 'Triagem por status' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByLabel('Nome de normal.pdf')).toHaveValue('SEGUNDO ARQUIVO');
+  await page.locator('tbody tr', { hasText: 'travado.pdf' }).getByRole('button', { name: /REVISAR/ }).click();
+  await expect(page.getByRole('list', { name: 'Pendências de travado.pdf' })).toHaveText('PDF demorou mais de 20 s para ser lido');
+  expect(workersCriados).toBe(2);
+});

@@ -60,6 +60,9 @@ export async function extrairTexto(pdf: ArrayBuffer, opcoes: OpcoesDeLeitura = {
   try {
     return await (signal ? Promise.race([ler(), quandoAbortar(signal)]) : ler());
   } finally {
-    await tarefa.destroy();
+    // Interrompido (por tempo), o worker pode estar preso neste PDF: o destroy() só responde
+    // com o worker livre, então não esperamos por ele. Quem chamou troca o worker.
+    if (signal?.aborted) void tarefa.destroy().catch(() => {});
+    else await tarefa.destroy();
   }
 }
