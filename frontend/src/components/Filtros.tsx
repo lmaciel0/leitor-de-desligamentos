@@ -69,31 +69,33 @@ export function Filtros(props: Props) {
   const raiz = useRef<HTMLDivElement>(null);
   const botoes = useRef<Record<Menu, HTMLButtonElement | null>>({ municipio: null, motivo: null });
 
-  // Clicar fora fecha o menu aberto.
+  // Com um menu aberto: clicar fora, apertar Esc ou sair com Tab fecha o menu.
   useEffect(() => {
     if (!aberto) return;
+    const conjunto = raiz.current;
     function aoClicar(evento: PointerEvent) {
-      if (!raiz.current?.contains(evento.target as Node)) setAberto(null);
+      if (!conjunto?.contains(evento.target as Node)) setAberto(null);
+    }
+    function aoTeclar(evento: KeyboardEvent) {
+      if (evento.key !== 'Escape' || !aberto) return;
+      botoes.current[aberto]?.focus();
+      setAberto(null);
+    }
+    function aoSairDoFoco(evento: FocusEvent) {
+      if (!conjunto?.contains(evento.relatedTarget as Node | null)) setAberto(null);
     }
     document.addEventListener('pointerdown', aoClicar);
-    return () => document.removeEventListener('pointerdown', aoClicar);
+    document.addEventListener('keydown', aoTeclar);
+    conjunto?.addEventListener('focusout', aoSairDoFoco);
+    return () => {
+      document.removeEventListener('pointerdown', aoClicar);
+      document.removeEventListener('keydown', aoTeclar);
+      conjunto?.removeEventListener('focusout', aoSairDoFoco);
+    };
   }, [aberto]);
 
   return (
-    <div
-      ref={raiz}
-      className="flex flex-wrap gap-3"
-      onKeyDown={(evento) => {
-        if (evento.key === 'Escape' && aberto) {
-          botoes.current[aberto]?.focus();
-          setAberto(null);
-        }
-      }}
-      // Sair do conjunto com Tab também fecha.
-      onBlur={(evento) => {
-        if (!evento.currentTarget.contains(evento.relatedTarget as Node | null)) setAberto(null);
-      }}
-    >
+    <div ref={raiz} className="flex flex-wrap gap-3">
       <MenuFiltro
         titulo="Município"
         opcoes={props.municipios}

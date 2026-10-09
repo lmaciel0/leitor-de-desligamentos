@@ -23,6 +23,15 @@ export function AvisoReprocessar({
     cancelar.current?.focus();
   }, []);
 
+  // Esc cancela enquanto o aviso estiver na tela (padrão de diálogo).
+  useEffect(() => {
+    function aoTeclar(evento: KeyboardEvent) {
+      if (evento.key === 'Escape') onCancelar();
+    }
+    document.addEventListener('keydown', aoTeclar);
+    return () => document.removeEventListener('keydown', aoTeclar);
+  }, [onCancelar]);
+
   const perda =
     linhasEditadas > 0
       ? ` e descarta as suas edições em ${linhasEditadas} ${linhasEditadas === 1 ? 'linha' : 'linhas'}`
@@ -33,9 +42,6 @@ export function AvisoReprocessar({
       role="alertdialog"
       aria-labelledby="aviso-reprocessar-titulo"
       aria-describedby="aviso-reprocessar-texto"
-      onKeyDown={(evento) => {
-        if (evento.key === 'Escape') onCancelar();
-      }}
       className="mt-4 rounded-md border-2 border-forte bg-superficie p-4"
     >
       <p id="aviso-reprocessar-titulo" className="font-semibold text-forte">
