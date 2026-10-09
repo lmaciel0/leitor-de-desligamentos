@@ -3,11 +3,48 @@
 @tailwind utilities;
 
 @layer base {
+  /* Papéis de cor (canais RGB, para aceitar opacidade). O tema escuro troca os valores. */
+  :root {
+    --fundo: 243 245 248;
+    --superficie: 255 255 255;
+    --texto: 22 35 58;
+    --texto-forte: 33 53 85;
+    --suave: 91 107 130;
+    --denim: 79 112 156;
+    --denim-claro: 228 235 243;
+    --honey-claro: 246 239 201;
+    --tijolo: 163 58 46;
+    --primario: 33 53 85;
+    --primario-hover: 22 35 58;
+    --sobre-primario: 255 255 255;
+    --ok: 79 112 156;
+    --anel: 33 53 85;
+    --acento: 33 53 85;
+  }
+  .dark {
+    --fundo: 14 22 36;
+    --superficie: 22 35 58;
+    --texto: 230 236 245;
+    --texto-forte: 214 226 243;
+    --suave: 160 175 196;
+    --denim: 126 163 214;
+    --denim-claro: 30 48 79;
+    --honey-claro: 58 52 24;
+    --tijolo: 255 138 125;
+    --primario: 126 163 214;
+    --primario-hover: 160 190 230;
+    --sobre-primario: 14 22 36;
+    --ok: 70 108 160;
+    --anel: 14 22 36;
+    --acento: 126 163 214;
+  }
+
   html { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
-  body { margin: 0; background: #F3F5F8; color: #16233A; }
+  body { margin: 0; background: rgb(var(--fundo)); color: rgb(var(--texto)); }
+  input { color: inherit; }
   h1, h2, p { margin: 0; }
   h1 { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; }
-  :focus-visible { outline: 3px solid #4F709C; outline-offset: 2px; }
+  :focus-visible { outline: 3px solid rgb(var(--denim)); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
@@ -18,20 +55,16 @@
 
   .botao-primario,
   .botao-secundario {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold;
   }
-  .botao-primario { @apply bg-eclipse text-white hover:bg-tinta; }
-  .botao-secundario { @apply border border-denim bg-white text-eclipse hover:bg-denim-claro; }
+  .botao-primario { @apply bg-primario text-sobre-primario hover:bg-primario-hover; }
+  .botao-secundario { @apply border border-denim bg-superficie text-forte hover:bg-denim-claro; }
   .botao-primario:disabled,
   .botao-secundario:disabled { @apply cursor-not-allowed opacity-50; }
 
   .campo-celula {
     @apply w-full min-w-[8rem] rounded border border-transparent bg-transparent px-2 py-1.5 text-sm;
   }
-  .campo-celula:hover { @apply border-denim/40 bg-white; }
-  .campo-celula:focus { @apply border-denim bg-white; }
-
-  .menu-filtro > summary { @apply flex cursor-pointer list-none items-center gap-2 rounded-md border border-denim/40 bg-white px-3 py-2 text-sm text-eclipse; }
-  .menu-filtro > summary::-webkit-details-marker { display: none; }
-  .menu-filtro[open] > summary { @apply border-denim; }
+  .campo-celula:hover { @apply border-denim/40 bg-superficie; }
+  .campo-celula:focus { @apply border-denim bg-superficie; }
 }

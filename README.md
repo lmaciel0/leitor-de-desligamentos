@@ -7,14 +7,19 @@ Extrai, revisa e exporta dados de formulários PDF de desligamento do Cartão Ma
 ## Funcionalidades
 
 - Upload de vários PDFs (seletor ou arrastar e soltar) e leitura de todas as páginas.
+- PDFs repetidos (mesmo conteúdo, mesmo com outro nome) são processados uma só vez, com aviso. Arquivos que não são PDF são ignorados com aviso.
 - Colunas `Arquivo`, `Referencia`, `Município`, `CPF`, `NIS`, `NIB`, `Nome` e `Motivo` em tabela editável.
+- Três conferências feitas à mão, em checkbox: `Município confere`, `Está validado` e `Recebe CMIC`. Elas não mudam o status e saem na exportação como `SIM` ou `NÃO`.
 - Motivo do desligamento: lê a opção marcada com `( X )` entre as várias opções do formulário.
 - Nomes que quebram em duas linhas no formulário são juntados.
 - A data de referência é o dia do processamento.
 - CPF, NIS e NIB preservados como texto, incluindo zeros à esquerda.
-- Status automático `OK` ou `REVISAR`, com a lista de pendências de cada linha. Um CPF que não tem 11 dígitos (por exemplo, erro de digitação no PDF) vira `REVISAR`.
+- Status automático `OK` ou `REVISAR`, com a lista de pendências de cada linha. Um CPF que não tem 11 dígitos (por exemplo, erro de digitação no PDF) vira `REVISAR`. Motivo `OUTRO` sem o detalhe (que costuma ser manuscrito) também vira `REVISAR`, para você digitar o detalhe na tabela.
 - Barra de triagem que filtra por status, e filtros por município e motivo.
 - Download em XLSX, CSV UTF-8 separado por ponto e vírgula e XLSX só com os registros `REVISAR`. Prefira o XLSX: ao abrir um CSV no Excel, os zeros à esquerda se perdem.
+- Processar de novo, com resultados na tela, pede confirmação: o reprocessamento substitui os resultados e descarta as edições manuais.
+- Modo escuro: botão no cabeçalho. Na primeira visita segue o tema do sistema; depois lembra a sua escolha neste navegador (só o tema fica guardado).
+- Acessível por teclado e leitor de tela (WCAG 2.1 AA; verificado com axe-core nos principais estados).
 - PDFs escaneados (sem texto selecionável) não são lidos: aparecem como `REVISAR` para digitação manual.
 
 ## Privacidade

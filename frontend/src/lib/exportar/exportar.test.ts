@@ -16,6 +16,9 @@ function registro(parcial: Partial<DesligamentoRecord> = {}): DesligamentoRecord
     nib: '0012345678',
     nome: 'MARIA DA SILVA',
     motivo: 'OUTRO: Mudança',
+    municipioConfere: false,
+    validado: false,
+    recebeCmic: false,
     status: 'OK',
     inconsistencias: [],
     ...parcial,
@@ -25,9 +28,9 @@ function registro(parcial: Partial<DesligamentoRecord> = {}): DesligamentoRecord
 describe('gerarCsv', () => {
   it('começa com BOM e o cabeçalho esperado, separado por ponto e vírgula', () => {
     const csv = gerarCsv([registro()]);
-    expect(csv.startsWith('﻿ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NIB;NOME;MOTIVO;STATUS\n')).toBe(true);
+    expect(csv.startsWith('﻿ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NIB;NOME;MOTIVO;MUNICIPIO CONFERE;ESTÁ VALIDADO;RECEBE CMIC;STATUS\n')).toBe(true);
     expect(csv.split('\n')[1]).toBe(
-      'a.pdf;17/09/2026;CIDADE EXEMPLO;00123456789;000123456789;0012345678;MARIA DA SILVA;OUTRO: Mudança;OK',
+      'a.pdf;17/09/2026;CIDADE EXEMPLO;00123456789;000123456789;0012345678;MARIA DA SILVA;OUTRO: Mudança;NÃO;NÃO;NÃO;OK',
     );
   });
 
@@ -51,6 +54,11 @@ describe('gerarCsv', () => {
     expect(csv).toContain("'-2;");
   });
 
+  it('exporta as marcações de conferência como SIM e NÃO', () => {
+    const csv = gerarCsv([registro({ municipioConfere: true, validado: false, recebeCmic: true })]);
+    expect(csv.split('\n')[1]).toContain(';MARIA DA SILVA;OUTRO: Mudança;SIM;NÃO;SIM;OK');
+  });
+
   it('não altera valores comuns', () => {
     const csv = gerarCsv([registro()]);
     expect(csv).toContain(';MARIA DA SILVA;');
@@ -58,7 +66,7 @@ describe('gerarCsv', () => {
   });
 
   it('gera apenas o cabeçalho para lista vazia', () => {
-    expect(gerarCsv([])).toBe('﻿ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NIB;NOME;MOTIVO;STATUS');
+    expect(gerarCsv([])).toBe('﻿ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NIB;NOME;MOTIVO;MUNICIPIO CONFERE;ESTÁ VALIDADO;RECEBE CMIC;STATUS');
   });
 });
 
@@ -87,10 +95,17 @@ describe('gerarXlsx', () => {
   it('inclui o cabeçalho e uma linha por registro', async () => {
     const { arquivos } = await abrir([registro(), registro({ id: 2, arquivo: 'b.pdf' })]);
     const textos = strFromU8(arquivos['xl/sharedStrings.xml']);
-    for (const titulo of ['ARQUIVO', 'Referencia', 'MUNICIPIO', 'CPF', 'NIS', 'NIB', 'NOME', 'MOTIVO', 'STATUS']) {
+    for (const titulo of ['ARQUIVO', 'Referencia', 'MUNICIPIO', 'CPF', 'NIS', 'NIB', 'NOME', 'MOTIVO', 'MUNICIPIO CONFERE', 'ESTÁ VALIDADO', 'RECEBE CMIC', 'STATUS']) {
       expect(textos).toContain(`<t>${titulo}</t>`);
     }
     expect(textos).toContain('<t>b.pdf</t>');
+  });
+
+  it('grava as marcações de conferência como texto SIM e NÃO', async () => {
+    const { arquivos } = await abrir([registro({ validado: true })]);
+    const textos = strFromU8(arquivos['xl/sharedStrings.xml']);
+    expect(textos).toContain('<t>SIM</t>');
+    expect(textos).toContain('<t>NÃO</t>');
   });
 
   it('aceita lista vazia', async () => {

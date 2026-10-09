@@ -23,6 +23,9 @@ function registro(id: number, status: 'OK' | 'REVISAR'): DesligamentoRecord {
     nib: '2',
     nome: 'N',
     motivo: 'M',
+    municipioConfere: false,
+    validado: false,
+    recebeCmic: false,
     status,
     inconsistencias: [],
   };
@@ -49,6 +52,11 @@ describe('BarraExportar', () => {
     expect(nomes).toEqual(['desligamentos.xlsx', 'desligamentos_revisar.xlsx']);
     expect(vi.mocked(gerarXlsx).mock.calls[0][0]).toHaveLength(2);
     expect(vi.mocked(gerarXlsx).mock.calls[1][0].map((r) => r.id)).toEqual([2]);
+  });
+
+  it('fica numa região nomeada, para quem navega por landmarks', () => {
+    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} />);
+    expect(screen.getByRole('region', { name: 'Exportar resultados' })).toBeInTheDocument();
   });
 
   it('avisa que o XLSX é o formato seguro para CPF e NIS', () => {

@@ -36,9 +36,18 @@ describe('processarArquivo', () => {
       nib: '0012345678',
       nome: 'MARIA DA SILVA',
       motivo: 'Mudança para outro Estado',
+      municipioConfere: false,
+      validado: false,
+      recebeCmic: false,
       status: 'OK',
       inconsistencias: [],
     });
+  });
+
+  it('registros com erro também começam sem marcações de conferência', async () => {
+    const vazio = new File([new Uint8Array(0)], 'vazio.pdf', { type: 'application/pdf' });
+    const registro = await processarArquivo(1, vazio, '09/10/2026');
+    expect([registro.municipioConfere, registro.validado, registro.recebeCmic]).toEqual([false, false, false]);
   });
 
   it('marca REVISAR e lista os campos que faltam', async () => {

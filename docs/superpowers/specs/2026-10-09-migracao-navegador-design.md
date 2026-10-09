@@ -204,3 +204,27 @@ Dois formulários reais (modelos em `archives-models/`, fora do git) foram proce
 - **CPF sem corte.** O CPF mantém todos os dígitos presentes no PDF. Um CPF com mais de 11 dígitos (um dos modelos traz 12) deixa de ser cortado em silêncio e vira `REVISAR` com `CPF inválido`. Ao editar a célula, CPF, NIS e NIB aceitam só dígitos.
 - **Nova coluna NIB.** O NIB (`NIB: 0863785131`, na mesma linha do NIS) entra depois do NIS, na tabela e nas exportações, e é obrigatório para o status `OK`. O cabeçalho exportado passa a ser `ARQUIVO;Referencia;MUNICIPIO;CPF;NIS;NIB;NOME;MOTIVO;STATUS`.
 - **Motivo "OUTRO".** O marcador real é `( X )`, com espaços. Para "OUTRO" o detalhe vem da mesma linha (sobre os sublinhados) ou da linha seguinte; sem detalhe o motivo fica só "OUTRO". A seção do motivo termina em "DATA EM QUE SAIU DO PERFIL". Esse caso não pôde ser validado com um formulário real, porque nenhum dos modelos tem "OUTRO" marcado.
+
+## 15. Duplicados, reprocessamento, OUTRO e acessibilidade (2026-10-09)
+
+- **PDFs duplicados.** Ao adicionar arquivos, o conteúdo (SHA-256) é comparado com o dos já escolhidos e entre si; só o primeiro entra e um aviso lista os repetidos. Arquivos que não são PDF deixam de ser descartados em silêncio e também geram aviso.
+- **Reprocessar.** Com resultados na tela, Processar abre um `alertdialog` ("Processar de novo?") que informa quantas linhas editadas serão descartadas. O foco começa em Cancelar e Esc cancela.
+- **Motivo OUTRO.** Se o motivo marcado for apenas "OUTRO" (sem o detalhe, que costuma ser manuscrito), a linha vira `REVISAR` com a pendência "Digite o detalhe do OUTRO". Com o detalhe lido, segue `OK`.
+- **Acessibilidade (WCAG 2.1 AA).** Região `aria-live` para o progresso e o resultado do lote; barra de exportação como região nomeada; legenda e `scope` na tabela; rótulos de célula acentuados ("Município de x.pdf"); `aria-controls` no botão `REVISAR`; menus de filtro como botões com `aria-expanded`, abrindo um por vez e fechando com Esc, clique fora ou Tab; alvos de toque de 44 px (exceto as células editáveis da tabela, com 34 px); bordas dos controles com contraste de 3:1. Verificado com `axe-core` no Chrome real: zero violações em cinco estados.
+
+## 16. Colunas de conferência (2026-10-09)
+
+Três colunas com checkbox, preenchidas à mão pelo operador depois do processamento: `Município confere`, `Está validado` e `Recebe CMIC`.
+
+- Começam desmarcadas e ficam entre `Motivo` e `Status`. Cada checkbox tem rótulo acessível por linha (por exemplo, "Está validado: x.pdf").
+- **Não influenciam** o status `OK`/`REVISAR` nem a barra de triagem.
+- Exportação (CSV e XLSX): três colunas entre `MOTIVO` e `STATUS`, com os cabeçalhos `MUNICIPIO CONFERE`, `ESTÁ VALIDADO` e `RECEBE CMIC` e os valores `SIM` ou `NÃO`.
+- Marcar um checkbox conta como edição manual no aviso de reprocessar, porque reprocessar zera as marcações.
+
+## 17. Modo escuro (2026-10-09)
+
+- **Botão no cabeçalho**, com nome acessível fixo "Modo escuro" e o estado em `aria-pressed`; alcançável por teclado (Enter e Espaço) e com 44 px de altura.
+- **Escolha do tema.** Na primeira visita vale a preferência do sistema (`prefers-color-scheme`); depois vale a escolha guardada em `localStorage` (só a palavra `claro` ou `escuro`; nenhum dado de PDF). Se o armazenamento estiver bloqueado, a escolha vale só naquela visita.
+- **Sem piscar.** `frontend/public/tema.js`, carregado no `<head>`, aplica a classe `dark` antes de a página aparecer. É um arquivo próprio porque o CSP só permite scripts da própria origem; o `vercel.json` não muda.
+- **Cores por papéis.** O Tailwind passa a usar variáveis CSS (`--fundo`, `--superficie`, `--texto`, `--denim`...) definidas em `:root` e trocadas em `.dark`, com `color-scheme: dark` para os controles nativos. Continuam fixos nos dois temas o cabeçalho (eclipse) e o honey, que segue exclusivo do estado `REVISAR`.
+- **Verificação.** `axe-core` no Chrome real, com o contraste medido nas cores renderizadas: zero violações no tema claro e no escuro, em quatro estados (vazio, resultados com linha expandida, menu de filtro aberto e aviso de reprocessar).

@@ -153,6 +153,19 @@ describe('inconsistencies e statusFor', () => {
     expect(statusFor(campos)).toBe('REVISAR');
   });
 
+  it('motivo OUTRO sem detalhe pede para o usuário digitar o detalhe', () => {
+    for (const motivo of ['OUTRO', 'outro', ' Outro ']) {
+      const campos = { ...completo, motivo };
+      expect(inconsistencies(campos)).toEqual(['Digite o detalhe do OUTRO']);
+      expect(statusFor(campos)).toBe('REVISAR');
+    }
+  });
+
+  it('motivo OUTRO com detalhe segue OK, e outro motivo que só contém "outro" também', () => {
+    expect(inconsistencies({ ...completo, motivo: 'OUTRO: mudou de cidade' })).toEqual([]);
+    expect(inconsistencies({ ...completo, motivo: 'Mudança para outro Município' })).toEqual([]);
+  });
+
   it('registro completo fica OK', () => {
     expect(inconsistencies(completo)).toEqual([]);
     expect(statusFor(completo)).toBe('OK');
@@ -171,6 +184,9 @@ describe('recalcular', () => {
       nib: '456',
       nome: 'ANA',
       motivo: 'Mudança',
+      municipioConfere: false,
+      validado: false,
+      recebeCmic: false,
       status: 'REVISAR',
       inconsistencias: ['PDF sem texto selecionável (escaneado)'],
     };

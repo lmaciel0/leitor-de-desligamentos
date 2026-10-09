@@ -1,4 +1,4 @@
-import type { DesligamentoRecord } from '../../tipos';
+import { CAMPOS_CONFERENCIA, type DesligamentoRecord } from '../../tipos';
 
 export const CABECALHO_EXPORTACAO = [
   'ARQUIVO',
@@ -9,8 +9,13 @@ export const CABECALHO_EXPORTACAO = [
   'NIB',
   'NOME',
   'MOTIVO',
+  'MUNICIPIO CONFERE',
+  'ESTÁ VALIDADO',
+  'RECEBE CMIC',
   'STATUS',
 ] as const;
+
+const simOuNao = (marcado: boolean): string => (marcado ? 'SIM' : 'NÃO');
 
 export function valoresDaLinha(registro: DesligamentoRecord): string[] {
   return [
@@ -22,6 +27,7 @@ export function valoresDaLinha(registro: DesligamentoRecord): string[] {
     registro.nib,
     registro.nome,
     registro.motivo,
+    ...CAMPOS_CONFERENCIA.map((campo) => simOuNao(registro[campo])),
     registro.status,
   ].map((valor) => valor ?? '');
 }

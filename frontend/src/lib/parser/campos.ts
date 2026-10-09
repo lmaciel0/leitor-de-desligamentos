@@ -155,6 +155,8 @@ export function inconsistencies(campos: CamposDesligamento): string[] {
   const problemas = CAMPOS_EDITAVEIS.filter((campo) => !campos[campo]?.trim()).map((campo) => campo.toUpperCase());
   const cpf = campos.cpf?.trim() ?? '';
   if (cpf && cpf.length !== 11) problemas.push('CPF inválido');
+  // O detalhe do OUTRO costuma ser manuscrito e não vem no texto do PDF: o usuário o digita.
+  if (/^outro$/i.test(campos.motivo?.trim() ?? '')) problemas.push('Digite o detalhe do OUTRO');
   return problemas;
 }
 

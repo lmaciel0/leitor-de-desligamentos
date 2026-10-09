@@ -3,12 +3,9 @@ import { useState } from 'react';
 
 interface Props {
   arquivos: File[];
+  /** Recebe tudo o que foi escolhido ou solto; quem usa decide o que é PDF e avisa o que ignorou. */
   onAdicionar: (arquivos: File[]) => void;
   onRemover: (indice: number) => void;
-}
-
-function ehPdf(arquivo: File): boolean {
-  return arquivo.type === 'application/pdf' || arquivo.name.toLowerCase().endsWith('.pdf');
 }
 
 export function ZonaUpload({ arquivos, onAdicionar, onRemover }: Props) {
@@ -26,10 +23,10 @@ export function ZonaUpload({ arquivos, onAdicionar, onRemover }: Props) {
         onDrop={(evento) => {
           evento.preventDefault();
           setArrastando(false);
-          onAdicionar(Array.from(evento.dataTransfer.files).filter(ehPdf));
+          onAdicionar(Array.from(evento.dataTransfer.files));
         }}
-        className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed px-5 py-6 text-eclipse focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-denim ${
-          arrastando ? 'border-eclipse bg-denim-claro' : 'border-denim bg-white'
+        className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed px-5 py-6 text-forte focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-denim ${
+          arrastando ? 'border-forte bg-denim-claro' : 'border-denim bg-superficie'
         }`}
       >
         <Upload size={22} aria-hidden="true" />
@@ -47,11 +44,11 @@ export function ZonaUpload({ arquivos, onAdicionar, onRemover }: Props) {
         />
       </label>
       {arquivos.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-2">
+        <ul className="mt-3 flex flex-wrap gap-2" aria-label="Arquivos escolhidos">
           {arquivos.map((arquivo, indice) => (
             <li
               key={`${arquivo.name}-${indice}`}
-              className="flex max-w-full items-center gap-2 rounded-full bg-denim-claro px-3 py-1.5 text-sm text-eclipse"
+              className="flex max-w-full items-center gap-2 rounded-full bg-denim-claro px-3 py-1.5 text-sm text-forte"
             >
               <FileText size={14} aria-hidden="true" />
               <span className="truncate">{arquivo.name}</span>
@@ -59,7 +56,8 @@ export function ZonaUpload({ arquivos, onAdicionar, onRemover }: Props) {
                 type="button"
                 aria-label={`Remover ${arquivo.name}`}
                 onClick={() => onRemover(indice)}
-                className="text-suave hover:text-tinta"
+                // A área de toque passa de 44×44 px sem aumentar a etiqueta.
+                className="relative text-suave after:absolute after:-inset-4 after:content-[''] hover:text-forte"
               >
                 <X size={14} aria-hidden="true" />
               </button>

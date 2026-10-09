@@ -8,8 +8,8 @@ interface Props {
 }
 
 const ESTILO: Record<Status, string> = {
-  OK: 'bg-denim text-white',
-  REVISAR: 'bg-honey text-eclipse',
+  OK: 'bg-ok text-white',
+  REVISAR: 'bg-honey text-sobre-honey',
 };
 
 export function BarraTriagem({ ok, revisar, statusAtivo, onAlternar }: Props) {
@@ -32,7 +32,7 @@ export function BarraTriagem({ ok, revisar, statusAtivo, onAlternar }: Props) {
             style={{ flexGrow: quantidade }}
             className={`tabular min-w-[7rem] px-4 text-left text-sm font-semibold ${ESTILO[status]} ${
               apagado ? 'opacity-40' : ''
-            } ${ativo ? 'ring-2 ring-inset ring-eclipse' : ''}`}
+            } ${ativo ? 'ring-2 ring-inset ring-anel' : ''}`}
           >
             {quantidade} {status}
           </button>
