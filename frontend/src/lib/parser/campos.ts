@@ -165,7 +165,8 @@ export function cpfTemDigitosValidos(cpf: string): boolean {
 
 /** Dígito verificador do NIS/PIS/PASEP (módulo 11, pesos 3 2 9 8 7 6 5 4 3 2). */
 export function nisTemDigitoValido(nis: string): boolean {
-  if (!/^\d{11}$/.test(nis)) return false;
+  // Só zeros passa na conta (soma 0, dígito 0), mas não é um NIS.
+  if (!/^\d{11}$/.test(nis) || /^0{11}$/.test(nis)) return false;
   const pesos = [3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
   const soma = pesos.reduce((total, peso, i) => total + peso * Number(nis[i]), 0);
   const digito = 11 - (soma % 11);

@@ -252,3 +252,10 @@ describe('dígitos verificadores de CPF e NIS', () => {
     expect(statusFor(valido)).toBe('OK');
   });
 });
+
+describe('NIS só com zeros', () => {
+  it('não é um NIS válido, mesmo passando na conta do dígito', () => {
+    const campos = { municipio: 'C', cpf: '52998224725', nis: '00000000000', nib: '1', nome: 'N', motivo: 'M' };
+    expect(inconsistencies(campos)).toEqual(['NIS com dígito verificador inválido']);
+  });
+});
