@@ -1,9 +1,5 @@
-import {
-  CAMPOS_CONFERENCIA,
-  CAMPOS_EDITAVEIS,
-  type DesligamentoRecord,
-  type Status,
-} from '../tipos';
+import { CAMPOS_CONFERENCIA, CAMPOS_EDITAVEIS, type DesligamentoRecord } from '../tipos';
+import { inconsistencies } from './parser/campos';
 
 /**
  * Arquivo de trabalho: guarda os registros (com edições e conferências) num .json que o
@@ -14,6 +10,14 @@ import {
 const FORMATO = 'leitor-de-desligamentos/trabalho';
 const VERSAO = 1;
 export const MAX_REGISTROS_NO_TRABALHO = 5000;
+/** Nenhum campo do formulário chega perto disso; acima, o arquivo foi alterado ou está corrompido. */
+const MAX_CARACTERES_POR_CAMPO = 1000;
+const MAX_PENDENCIAS = 50;
+
+/** Pendências geradas na leitura do PDF (tamanho, páginas, tempo, escaneado, erro): não vêm dos campos. */
+function ehPendenciaDaLeitura(pendencia: string): boolean {
+  return pendencia.startsWith('PDF ') || pendencia.startsWith('erro de processamento');
+}
 
 export class TrabalhoInvalido extends Error {
   constructor(mensagem: string) {
@@ -50,10 +54,12 @@ function lerRegistro(bruto: unknown, posicao: number): DesligamentoRecord {
   if (!ehObjeto(bruto)) throw new TrabalhoInvalido(`Registro ${posicao}: não é um registro.`);
 
   // Monta um objeto novo só com os campos conhecidos (chaves extras, inclusive __proto__, ficam de fora).
+  const grandeDemais = (campo: string) => new TrabalhoInvalido(`Registro ${posicao}: campo "${campo}" grande demais.`);
   const textos = {} as Record<(typeof CAMPOS_TEXTO)[number], string>;
   for (const campo of CAMPOS_TEXTO) {
     const valor = bruto[campo];
     if (typeof valor !== 'string') throw invalido(campo);
+    if (valor.length > MAX_CARACTERES_POR_CAMPO) throw grandeDemais(campo);
     textos[campo] = valor;
   }
   const conferencias = {} as Record<(typeof CAMPOS_CONFERENCIA)[number], boolean>;
@@ -68,13 +74,23 @@ function lerRegistro(bruto: unknown, posicao: number): DesligamentoRecord {
   if (!Array.isArray(inconsistencias) || !inconsistencias.every((item) => typeof item === 'string')) {
     throw invalido('inconsistencias');
   }
+  if (
+    inconsistencias.length > MAX_PENDENCIAS ||
+    (inconsistencias as string[]).some((item) => item.length > MAX_CARACTERES_POR_CAMPO)
+  ) {
+    throw grandeDemais('inconsistencias');
+  }
 
+  // O status salvo não é confiável (o arquivo pode ter sido editado): recalcula a partir dos
+  // campos, como numa edição. As pendências da leitura do PDF não dá para recalcular; ficam.
+  const daLeitura = (inconsistencias as string[]).filter(ehPendenciaDaLeitura);
+  const problemas = [...daLeitura, ...inconsistencies(textos)];
   return {
     id: posicao,
     ...textos,
     ...conferencias,
-    status: status as Status,
-    inconsistencias: [...(inconsistencias as string[])],
+    status: problemas.length === 0 ? 'OK' : 'REVISAR',
+    inconsistencias: problemas,
   };
 }
 

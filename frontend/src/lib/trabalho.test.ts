@@ -74,6 +74,35 @@ describe('arquivo de trabalho', () => {
     expect(Object.getPrototypeOf(lido)).toBe(Object.prototype);
   });
 
+  it('recalcula o status ao abrir: um registro salvo como OK com CPF vazio volta como REVISAR', () => {
+    const conteudo = JSON.parse(gerarTrabalho([registro()], salvoEm));
+    conteudo.registros[0].cpf = '';
+    const lido = lerTrabalho(JSON.stringify(conteudo)).registros[0];
+    expect(lido.status).toBe('REVISAR');
+    expect(lido.inconsistencias).toEqual(['CPF']);
+  });
+
+  it('recalcula o status ao abrir: REVISAR sem nenhuma pendência volta como OK', () => {
+    const conteudo = JSON.parse(gerarTrabalho([registro({ status: 'REVISAR', inconsistencias: [] })], salvoEm));
+    expect(lerTrabalho(JSON.stringify(conteudo)).registros[0].status).toBe('OK');
+  });
+
+  it('mantém as pendências da leitura do PDF, que não dá para recalcular', () => {
+    const vazio = registro({ municipio: '', cpf: '', nis: '', nib: '', nome: '', motivo: '', status: 'REVISAR', inconsistencias: ['PDF maior que 20 MB'] });
+    const lido = lerTrabalho(gerarTrabalho([vazio], salvoEm)).registros[0];
+    expect(lido.inconsistencias).toEqual(['PDF maior que 20 MB', 'MUNICIPIO', 'CPF', 'NIS', 'NIB', 'NOME', 'MOTIVO']);
+  });
+
+  it('recusa textos e listas de pendências grandes demais', () => {
+    expect(() => lerTrabalho(gerarTrabalho([registro({ nome: 'A'.repeat(1001) })], salvoEm))).toThrow(
+      'Registro 1: campo "nome" grande demais.',
+    );
+    const muitas = Array.from({ length: 51 }, (_, i) => `PDF problema ${i}`);
+    expect(() => lerTrabalho(gerarTrabalho([registro({ inconsistencias: muitas })], salvoEm))).toThrow(
+      'Registro 1: campo "inconsistencias" grande demais.',
+    );
+  });
+
   it('recusa trabalho com registros demais', () => {
     const muitos = Array.from({ length: 5001 }, (_, i) => registro({ id: i + 1 }));
     expect(() => lerTrabalho(gerarTrabalho(muitos, salvoEm))).toThrow('mais de 5000 registros');
