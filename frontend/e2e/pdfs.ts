@@ -7,7 +7,7 @@ export function linhasDoFormulario(opcoes: { nome: string; cpf?: string }): stri
     'FORMULÁRIO DE SOLICITAÇÃO DE DESLIGAMENTO DE BENEFICIÁRIOS',
     'MUNICÍPIO: CIDADE EXEMPLO',
     `NOME DO RESPONSÁVEL FAMILIAR (RF) A SER DESLIGADO: ${opcoes.nome}`,
-    `DATA NASC.: 10/08/1990 ${opcoes.cpf === undefined ? 'CPF: 529.982.247-25' : opcoes.cpf}`,
+    `DATA NASC.: 10/08/1990 ${opcoes.cpf ?? 'CPF: 529.982.247-25'}`,
     'NIB: 1234567890 NIS:12345678919',
     ' MOTIVO DO DESLIGAMENTO:',
     '( ) Processo de fiscalização;',

@@ -40,6 +40,30 @@ function registroVazio(id: number, arquivo: string, referencia: string, problema
   };
 }
 
+function registroDoTexto(id: number, arquivo: string, referencia: string, texto: string): DesligamentoRecord {
+  if (!texto.trim()) return registroVazio(id, arquivo, referencia, MENSAGEM_PDF_ESCANEADO);
+  const campos = parseText(texto);
+  const problemas = inconsistencies(campos);
+  return {
+    id,
+    arquivo,
+    referencia,
+    ...campos,
+    ...SEM_CONFERENCIA,
+    status: problemas.length === 0 ? 'OK' : 'REVISAR',
+    inconsistencias: problemas,
+  };
+}
+
+/** Troca o worker (que pode estar preso num PDF); se não der agora, o próximo arquivo tenta carregar de novo. */
+async function trocarWorker(): Promise<void> {
+  try {
+    await reiniciarWorker();
+  } catch {
+    // Sem worker novo agora; carregarPdfjs tenta de novo no próximo arquivo.
+  }
+}
+
 export async function processarArquivo(
   id: number,
   arquivo: File,
@@ -64,28 +88,11 @@ export async function processarArquivo(
       tempoMaximoMs,
     );
     const texto = await extrairTexto(dados, { maxPaginas, signal: relogio.signal });
-    if (!texto.trim()) return registroVazio(id, nome, referencia, MENSAGEM_PDF_ESCANEADO);
-    const campos = parseText(texto);
-    const problemas = inconsistencies(campos);
-    return {
-      id,
-      arquivo: nome,
-      referencia,
-      ...campos,
-      ...SEM_CONFERENCIA,
-      status: problemas.length === 0 ? 'OK' : 'REVISAR',
-      inconsistencias: problemas,
-    };
+    return registroDoTexto(id, nome, referencia, texto);
   } catch (erro) {
     if (erro instanceof LimiteExcedido) {
       // Se o tempo estourou, o worker pode estar preso nesse PDF: o próximo arquivo usa um novo.
-      if (relogio.signal.aborted) {
-        try {
-          await reiniciarWorker();
-        } catch {
-          // Sem worker novo agora; o próximo arquivo tenta carregar o pdf.js de novo.
-        }
-      }
+      if (relogio.signal.aborted) await trocarWorker();
       return registroVazio(id, nome, referencia, erro.message);
     }
     const mensagem = erro instanceof Error ? erro.message : String(erro);
