@@ -2,17 +2,38 @@ import { useEffect, useRef } from 'react';
 
 interface Props {
   linhasEditadas: number;
+  /** Pergunta do aviso (o padrão é para reprocessar). */
+  titulo?: string;
+  rotuloConfirmar?: string;
   onConfirmar: () => void;
   onCancelar: () => void;
 }
 
-export function AvisoReprocessar({ linhasEditadas, onConfirmar, onCancelar }: Props) {
+export function AvisoReprocessar({
+  linhasEditadas,
+  titulo = 'Processar de novo?',
+  rotuloConfirmar = 'Processar de novo',
+  onConfirmar,
+  onCancelar,
+}: Props) {
   const cancelar = useRef<HTMLButtonElement>(null);
 
   // O foco começa na opção segura.
   useEffect(() => {
     cancelar.current?.focus();
   }, []);
+
+  // Esc cancela quando o foco está no aviso. Só ali: Esc numa célula da tabela não deve
+  // descartar a pergunta.
+  const raiz = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const aviso = raiz.current;
+    function aoTeclar(evento: KeyboardEvent) {
+      if (evento.key === 'Escape') onCancelar();
+    }
+    aviso?.addEventListener('keydown', aoTeclar);
+    return () => aviso?.removeEventListener('keydown', aoTeclar);
+  }, [onCancelar]);
 
   const perda =
     linhasEditadas > 0
@@ -21,16 +42,14 @@ export function AvisoReprocessar({ linhasEditadas, onConfirmar, onCancelar }: Pr
 
   return (
     <div
+      ref={raiz}
       role="alertdialog"
       aria-labelledby="aviso-reprocessar-titulo"
       aria-describedby="aviso-reprocessar-texto"
-      onKeyDown={(evento) => {
-        if (evento.key === 'Escape') onCancelar();
-      }}
       className="mt-4 rounded-md border-2 border-forte bg-superficie p-4"
     >
       <p id="aviso-reprocessar-titulo" className="font-semibold text-forte">
-        Processar de novo?
+        {titulo}
       </p>
       <p id="aviso-reprocessar-texto" className="mt-1 text-sm">
         {`Isto substitui os resultados atuais${perda}.`}
@@ -40,7 +59,7 @@ export function AvisoReprocessar({ linhasEditadas, onConfirmar, onCancelar }: Pr
           Cancelar
         </button>
         <button type="button" className="botao-primario" onClick={onConfirmar}>
-          Processar de novo
+          {rotuloConfirmar}
         </button>
       </div>
     </div>

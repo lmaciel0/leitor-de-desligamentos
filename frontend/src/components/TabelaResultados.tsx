@@ -120,8 +120,8 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
                   <tr className="border-b border-denim/15 bg-honey-claro">
                     <td colSpan={COLUNAS} className="px-3 pb-3 pl-6">
                       <ul id={`pendencias-${registro.id}`} aria-label={`Pendências de ${registro.arquivo}`} className="list-disc pl-5 text-sm">
-                        {registro.inconsistencias.map((pendencia) => (
-                          <li key={pendencia}>{pendencia}</li>
+                        {registro.inconsistencias.map((pendencia, indice) => (
+                          <li key={`${indice}-${pendencia}`}>{pendencia}</li>
                         ))}
                       </ul>
                     </td>

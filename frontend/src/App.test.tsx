@@ -5,9 +5,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesligamentoRecord } from './tipos';
 
 vi.mock('./lib/processar', () => ({ processarLote: vi.fn() }));
+vi.mock('./lib/exportar/baixar', () => ({ baixarBlob: vi.fn() }));
 
 import App from './App';
+import { baixarBlob } from './lib/exportar/baixar';
 import { processarLote } from './lib/processar';
+import { gerarTrabalho } from './lib/trabalho';
+
+function arquivoDeTrabalho(registros: DesligamentoRecord[]): File {
+  return new File([gerarTrabalho(registros, new Date(2026, 9, 9, 14, 30))], 'trabalho.json', { type: 'application/json' });
+}
 
 function registro(id: number, parcial: Partial<DesligamentoRecord> = {}): DesligamentoRecord {
   return {
@@ -16,7 +23,7 @@ function registro(id: number, parcial: Partial<DesligamentoRecord> = {}): Deslig
     referencia: '09/10/2026',
     municipio: 'CIDADE',
     cpf: '12345678909',
-    nis: '123',
+    nis: '12345678919',
     nib: '456',
     nome: 'ANA',
     motivo: 'Mudança',
@@ -193,6 +200,57 @@ describe('App', () => {
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Município confere: 1.pdf' }));
     await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
     expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription("Isto substitui os resultados atuais e descarta as suas edições em 1 linha.");
+  });
+
+  it('salvar trabalho fica desabilitado sem resultados e baixa um .json com os registros e conferências', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    expect(screen.getByRole('button', { name: 'Salvar trabalho' })).toBeDisabled();
+    await enviarEProcessar('1.pdf', '2.pdf');
+    await screen.findByRole('button', { name: /1 OK/ });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Está validado: 1.pdf' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar trabalho' }));
+    const chamadas = vi.mocked(baixarBlob).mock.calls;
+    const [blob, nome] = chamadas[chamadas.length - 1];
+    expect(nome).toMatch(/^trabalho-desligamentos-\d{4}-\d{2}-\d{2}\.json$/);
+    const conteudo = JSON.parse(await blob.text()) as { registros: DesligamentoRecord[] };
+    expect(conteudo.registros.map((r) => [r.arquivo, r.validado])).toEqual([
+      ['1.pdf', true],
+      ['2.pdf', false],
+    ]);
+    expect(await screen.findByText('Trabalho salvo. O arquivo contém CPF e NIS: guarde-o em local seguro.')).toBeInTheDocument();
+  });
+
+  it('abrir trabalho mostra os registros salvos, com as conferências, sem processar nada', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1, { validado: true }), revisar(2)]));
+    expect(await screen.findByRole('checkbox', { name: 'Está validado: 1.pdf' })).toBeChecked();
+    expect(screen.getByRole('button', { name: /1 REVISAR/ })).toBeInTheDocument();
+    expect(screen.getByText('Trabalho aberto: 2 registros, salvo em 09/10/2026 às 14:30.')).toBeInTheDocument();
+    expect(processarLote).not.toHaveBeenCalled();
+  });
+
+  it('com resultados na tela, abrir trabalho pede confirmação; cancelar mantém o que está na tela', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await screen.findByRole('button', { name: /1 OK/ });
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1, { arquivo: 'outro.pdf' })]));
+    expect(await screen.findByRole('alertdialog', { name: 'Abrir trabalho?' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.getByLabelText('Nome de 1.pdf')).toBeInTheDocument();
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1, { arquivo: 'outro.pdf' })]));
+    await userEvent.click(await screen.findByRole('button', { name: 'Abrir trabalho' }));
+    expect(await screen.findByLabelText('Nome de outro.pdf')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Nome de 1.pdf')).not.toBeInTheDocument();
+  });
+
+  it('arquivo de trabalho inválido mostra o motivo e não mexe nos resultados', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), new File(['{"x":1}'], 'outro.json', { type: 'application/json' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível abrir o trabalho: Este arquivo não é um trabalho do Leitor de desligamentos.',
+    );
   });
 
   it('Limpar dados zera tudo e descarta o resultado de um lote em andamento', async () => {

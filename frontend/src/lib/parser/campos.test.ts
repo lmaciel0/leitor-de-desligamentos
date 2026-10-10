@@ -4,8 +4,8 @@ import { inconsistencies, normalizarCampo, parseText, recalcular, statusFor } fr
 
 const TEXTO = [
   'MUNICÍPIO: CIDADE EXEMPLO',
-  'CPF: 001.234.567-89',
-  'NIS: 000123456789',
+  'CPF: 001.234.567-97',
+  'NIS: 12345678919',
   'NIB: 0012345678',
   'NOME DO RESPONSÁVEL FAMILIAR (RF) A SER DESLIGADO: MARIA DA SILVA',
   'MOTIVO DO DESLIGAMENTO',
@@ -19,8 +19,8 @@ describe('parseText', () => {
     const campos = parseText(TEXTO);
     expect(campos).toEqual({
       municipio: 'CIDADE EXEMPLO',
-      cpf: '00123456789',
-      nis: '000123456789',
+      cpf: '00123456797',
+      nis: '12345678919',
       nib: '0012345678',
       nome: 'MARIA DA SILVA',
       motivo: 'OUTRO: Mudança de renda da família',
@@ -50,7 +50,7 @@ describe('parseText', () => {
   it('mantém todos os dígitos do CPF, mesmo passando de 11, para a revisão apontar o erro', () => {
     const campos = parseText('CPF: 086378851312');
     expect(campos.cpf).toBe('086378851312');
-    expect(inconsistencies({ ...campos, municipio: 'C', nis: '1', nib: '1', nome: 'N', motivo: 'M' })).toEqual(['CPF inválido']);
+    expect(inconsistencies({ ...campos, municipio: 'C', nis: '12345678919', nib: '1', nome: 'N', motivo: 'M' })).toEqual(['CPF inválido']);
   });
 
   it('lê o NIB sem engolir o NIS que vem na mesma linha', () => {
@@ -140,7 +140,7 @@ describe('parseText', () => {
 });
 
 describe('inconsistencies e statusFor', () => {
-  const completo = { municipio: 'OUTRA CIDADE', cpf: '12345678909', nis: '123', nib: '456', nome: 'ANA', motivo: 'Mudança' };
+  const completo = { municipio: 'OUTRA CIDADE', cpf: '12345678909', nis: '12345678919', nib: '456', nome: 'ANA', motivo: 'Mudança' };
 
   it('campo ausente exige revisão', () => {
     const campos = { ...completo, municipio: '', nis: '', nib: '', nome: '', motivo: '', cpf: '123' };
@@ -180,7 +180,7 @@ describe('recalcular', () => {
       referencia: '09/10/2026',
       municipio: '',
       cpf: '12345678909',
-      nis: '123',
+      nis: '12345678919',
       nib: '456',
       nome: 'ANA',
       motivo: 'Mudança',
@@ -216,5 +216,46 @@ describe('normalizarCampo', () => {
   it('os demais campos ficam como digitados', () => {
     expect(normalizarCampo('nome', ' Ana  Maria ')).toBe(' Ana  Maria ');
     expect(normalizarCampo('motivo', '(X) outro')).toBe('(X) outro');
+  });
+});
+
+describe('dígitos verificadores de CPF e NIS', () => {
+  const valido = { municipio: 'C', cpf: '52998224725', nis: '12345678919', nib: '1', nome: 'N', motivo: 'M' };
+
+  it('aceita CPF e NIS com dígitos corretos, inclusive CPF com zeros à esquerda', () => {
+    expect(inconsistencies(valido)).toEqual([]);
+    expect(inconsistencies({ ...valido, cpf: '00123456797' })).toEqual([]);
+  });
+
+  it('aponta CPF com dígito verificador errado', () => {
+    expect(inconsistencies({ ...valido, cpf: '52998224724' })).toEqual(['CPF com dígito verificador inválido']);
+  });
+
+  it('aponta CPF com todos os dígitos iguais, que passa na conta mas não existe', () => {
+    expect(inconsistencies({ ...valido, cpf: '11111111111' })).toEqual(['CPF com dígito verificador inválido']);
+  });
+
+  it('CPF com tamanho errado aponta só o tamanho', () => {
+    expect(inconsistencies({ ...valido, cpf: '086378851312' })).toEqual(['CPF inválido']);
+  });
+
+  it('aponta NIS com dígito verificador errado', () => {
+    expect(inconsistencies({ ...valido, nis: '12345678918' })).toEqual(['NIS com dígito verificador inválido']);
+  });
+
+  it('aponta NIS que não tem 11 dígitos', () => {
+    expect(inconsistencies({ ...valido, nis: '123' })).toEqual(['NIS inválido']);
+  });
+
+  it('o status reflete os dígitos verificadores', () => {
+    expect(statusFor({ ...valido, cpf: '52998224724' })).toBe('REVISAR');
+    expect(statusFor(valido)).toBe('OK');
+  });
+});
+
+describe('NIS só com zeros', () => {
+  it('não é um NIS válido, mesmo passando na conta do dígito', () => {
+    const campos = { municipio: 'C', cpf: '52998224725', nis: '00000000000', nib: '1', nome: 'N', motivo: 'M' };
+    expect(inconsistencies(campos)).toEqual(['NIS com dígito verificador inválido']);
   });
 });

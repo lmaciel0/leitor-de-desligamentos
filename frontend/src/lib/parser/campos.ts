@@ -151,10 +151,36 @@ export function normalizarCampo(campo: CampoEditavel, valor: string): string {
   return valor;
 }
 
+/** Dígitos verificadores do CPF (módulo 11, pesos 10..2 e 11..2). Todos os dígitos iguais não é CPF válido. */
+export function cpfTemDigitosValidos(cpf: string): boolean {
+  if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+  const d = [...cpf].map(Number);
+  const digito = (quantos: number) => {
+    const soma = d.slice(0, quantos).reduce((total, valor, i) => total + valor * (quantos + 1 - i), 0);
+    const resto = (soma * 10) % 11;
+    return resto === 10 ? 0 : resto;
+  };
+  return digito(9) === d[9] && digito(10) === d[10];
+}
+
+/** Dígito verificador do NIS/PIS/PASEP (módulo 11, pesos 3 2 9 8 7 6 5 4 3 2). */
+export function nisTemDigitoValido(nis: string): boolean {
+  // Só zeros passa na conta (soma 0, dígito 0), mas não é um NIS.
+  if (!/^\d{11}$/.test(nis) || /^0{11}$/.test(nis)) return false;
+  const pesos = [3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const soma = pesos.reduce((total, peso, i) => total + peso * Number(nis[i]), 0);
+  const digito = 11 - (soma % 11);
+  return (digito >= 10 ? 0 : digito) === Number(nis[10]);
+}
+
 export function inconsistencies(campos: CamposDesligamento): string[] {
   const problemas = CAMPOS_EDITAVEIS.filter((campo) => !campos[campo]?.trim()).map((campo) => campo.toUpperCase());
   const cpf = campos.cpf?.trim() ?? '';
   if (cpf && cpf.length !== 11) problemas.push('CPF inválido');
+  else if (cpf && !cpfTemDigitosValidos(cpf)) problemas.push('CPF com dígito verificador inválido');
+  const nis = campos.nis?.trim() ?? '';
+  if (nis && nis.length !== 11) problemas.push('NIS inválido');
+  else if (nis && !nisTemDigitoValido(nis)) problemas.push('NIS com dígito verificador inválido');
   // O detalhe do OUTRO costuma ser manuscrito e não vem no texto do PDF: o usuário o digita.
   if (/^outro$/i.test(campos.motivo?.trim() ?? '')) problemas.push('Digite o detalhe do OUTRO');
   return problemas;
