@@ -85,11 +85,12 @@ export function Filtros(props: Props) {
       if (!conjunto?.contains(evento.relatedTarget as Node | null)) setAberto(null);
     }
     document.addEventListener('pointerdown', aoClicar);
-    document.addEventListener('keydown', aoTeclar);
+    // Esc só com o foco nos filtros, para não fechar outra coisa aberta na tela.
+    conjunto?.addEventListener('keydown', aoTeclar);
     conjunto?.addEventListener('focusout', aoSairDoFoco);
     return () => {
       document.removeEventListener('pointerdown', aoClicar);
-      document.removeEventListener('keydown', aoTeclar);
+      conjunto?.removeEventListener('keydown', aoTeclar);
       conjunto?.removeEventListener('focusout', aoSairDoFoco);
     };
   }, [aberto]);

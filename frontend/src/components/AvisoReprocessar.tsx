@@ -23,13 +23,16 @@ export function AvisoReprocessar({
     cancelar.current?.focus();
   }, []);
 
-  // Esc cancela enquanto o aviso estiver na tela (padrão de diálogo).
+  // Esc cancela quando o foco está no aviso. Só ali: Esc numa célula da tabela não deve
+  // descartar a pergunta.
+  const raiz = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    const aviso = raiz.current;
     function aoTeclar(evento: KeyboardEvent) {
       if (evento.key === 'Escape') onCancelar();
     }
-    document.addEventListener('keydown', aoTeclar);
-    return () => document.removeEventListener('keydown', aoTeclar);
+    aviso?.addEventListener('keydown', aoTeclar);
+    return () => aviso?.removeEventListener('keydown', aoTeclar);
   }, [onCancelar]);
 
   const perda =
@@ -39,6 +42,7 @@ export function AvisoReprocessar({
 
   return (
     <div
+      ref={raiz}
       role="alertdialog"
       aria-labelledby="aviso-reprocessar-titulo"
       aria-describedby="aviso-reprocessar-texto"

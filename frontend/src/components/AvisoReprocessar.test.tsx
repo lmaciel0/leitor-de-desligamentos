@@ -24,6 +24,19 @@ describe('AvisoReprocessar', () => {
     );
   });
 
+  it('Esc com o foco fora do aviso (por exemplo, numa célula da tabela) não cancela', async () => {
+    const onCancelar = vi.fn();
+    render(
+      <>
+        <input aria-label="célula" />
+        <AvisoReprocessar linhasEditadas={0} onConfirmar={() => {}} onCancelar={onCancelar} />
+      </>,
+    );
+    await userEvent.click(screen.getByLabelText('célula'));
+    await userEvent.keyboard('{Escape}');
+    expect(onCancelar).not.toHaveBeenCalled();
+  });
+
   it('confirma, cancela e cancela com Esc', async () => {
     const onConfirmar = vi.fn();
     const onCancelar = vi.fn();
