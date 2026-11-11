@@ -69,6 +69,40 @@ describe('avisosDeLeitura', () => {
     expect(avisosDeLeitura(formulario({ saida: '29/02/2024' }))).toEqual([]);
   });
 
+  it.each([
+    ['DATA NASC.', { nascimento: '3l/02/1990' }],
+    ['DATA DA ÚLTIMA ATUALIZAÇÃO', { atualizacao: '10/O1/2024' }],
+    ['DATA DA VALIDAÇÃO CMIC', { validacao: '11/01/24' }],
+    ['DATA EM QUE SAIU DO PERFIL DO CMIC', { saida: 'l2/02/2024' }],
+  ])('avisa data fora do formato dd/mm/aaaa em %s', (rotulo, opcoes) => {
+    expect(avisosDeLeitura(formulario(opcoes))).toEqual([`Data inválida: ${rotulo}`]);
+  });
+
+  it('data seguida de outro campo na mesma linha não gera aviso', () => {
+    const texto = formulario().replace('DATA NASC.: 15/03/1990', 'DATA NASC.: 15/03/1990 CPF: 056.297.773-27');
+    expect(avisosDeLeitura(texto)).toEqual([]);
+  });
+
+  it.each([['vazio', ''], ['só com o traçado do formulário', '__/__/____']])(
+    'campo de data %s não gera aviso',
+    (_caso, nascimento) => {
+      expect(avisosDeLeitura(formulario({ nascimento }))).toEqual([]);
+    },
+  );
+
+  it('data que o OCR pôs na linha de baixo do rótulo também é conferida', () => {
+    const naLinhaDeBaixo = (data: string) => formulario().replace('DATA NASC.: 15/03/1990', `DATA NASC.:\n${data}`);
+    expect(avisosDeLeitura(naLinhaDeBaixo('15/03/1990'))).toEqual([]);
+    expect(avisosDeLeitura(naLinhaDeBaixo('3l/02/1990'))).toEqual(['Data inválida: DATA NASC.']);
+  });
+
+  it('confere também a data junto do município, no fim do formulário', () => {
+    const comData = (data: string) => `${formulario()}\nMUNICÍPIO: CIDADE EXEMPLO DATA: ${data}`;
+    expect(avisosDeLeitura(comData('12/02/2024'))).toEqual([]);
+    expect(avisosDeLeitura(comData('31/04/2024'))).toEqual(['Data inválida: DATA (MUNICÍPIO)']);
+    expect(avisosDeLeitura(comData('3l/04/2024'))).toEqual(['Data inválida: DATA (MUNICÍPIO)']);
+  });
+
   it('rótulo de data ausente não gera aviso', () => {
     const texto = formulario().replace(/DATA NASC\.:.*\n/u, '');
     expect(avisosDeLeitura(texto)).toEqual([]);

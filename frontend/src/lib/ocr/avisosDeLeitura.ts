@@ -9,7 +9,10 @@ const ROTULO_CARTAO = /NOME\s+NO\s+CART[AÃ]O\s+CMIC\s*:\s*([^\r\n]*)/iu;
 const TITULO_MOTIVO = /MOTIVO\s+DO\s+DESLIGAMENTO/iu;
 const FIM_MOTIVO = /DATA\s+EM\s+QUE\s+SAIU/iu;
 const MARCADOR = /\(\s*[xX]\s*\)/gu;
-const DATA = /(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4})/u;
+/** O valor do campo de data começa com dd/mm/aaaa; depois pode vir outro campo na mesma linha. */
+const DATA = /^\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4})(?!\d)/u;
+/** Campo de data em branco: vazio ou só o traçado do formulário (`__/__/____`). */
+const SEM_VALOR = /^[\s_./|-]*$/u;
 const ACENTOS = /\p{M}/gu;
 const ESPACOS = /\s+/gu;
 
@@ -18,6 +21,8 @@ const ROTULOS_DE_DATA: ReadonlyArray<{ nome: string; padrao: string }> = [
   { nome: 'DATA DA ÚLTIMA ATUALIZAÇÃO', padrao: 'DATA\\s+DA\\s+[UÚ]LTIMA\\s+ATUALIZA[CÇ][AÃ]O' },
   { nome: 'DATA DA VALIDAÇÃO CMIC', padrao: 'DATA\\s+DA\\s+VALIDA[CÇ][AÃ]O\\s+CMIC' },
   { nome: 'DATA EM QUE SAIU DO PERFIL DO CMIC', padrao: 'DATA\\s+EM\\s+QUE\\s+SAIU\\s+DO\\s+PERFIL\\s+DO\\s+CMIC' },
+  // Rótulo "DATA:" sozinho, junto do município no fim do formulário.
+  { nome: 'DATA (MUNICÍPIO)', padrao: '\\bDATA\\s*:' },
 ];
 
 function comparavel(nome: string): string {
@@ -36,12 +41,24 @@ function avisoDeNome(texto: string): string[] {
   return comparavel(responsavel) === comparavel(cartao) ? [] : ['Nome no cartão CMIC difere do nome do responsável'];
 }
 
+/** Data com valor preenchido que não é dd/mm/aaaa (ex.: `3l/02/1990`) ou que não existe (ex.: 31/02). */
+function dataInvalida(valor: string): boolean {
+  if (SEM_VALOR.test(valor)) return false;
+  const data = DATA.exec(valor);
+  return !data || !dataExiste(Number(data[1]), Number(data[2]), Number(data[3]));
+}
+
 function avisosDeData(texto: string): string[] {
   const avisos: string[] = [];
   for (const { nome, padrao } of ROTULOS_DE_DATA) {
-    const valor = new RegExp(`${padrao}\\s*:\\s*([^\\r\\n]*)`, FLAGS).exec(texto)?.[1];
-    const data = valor ? DATA.exec(valor) : null;
-    if (data && !dataExiste(Number(data[1]), Number(data[2]), Number(data[3]))) avisos.push(`Data inválida: ${nome}`);
+    // O rótulo pode já trazer os dois-pontos (o "DATA:" do município); os demais, não.
+    const rotulo = padrao.endsWith(':') ? padrao : `${padrao}\\s*:`;
+    const achado = new RegExp(`${rotulo}[^\\S\\r\\n]*([^\\r\\n]*)(?:\\r?\\n([^\\r\\n]*))?`, FLAGS).exec(texto);
+    if (!achado) continue;
+    // Valor na mesma linha do rótulo; o OCR às vezes o põe na linha de baixo (que então começa com dígito).
+    const [, mesmaLinha, linhaDeBaixo = ''] = achado;
+    const valor = SEM_VALOR.test(mesmaLinha) && /^\s*\d/u.test(linhaDeBaixo) ? linhaDeBaixo : mesmaLinha;
+    if (dataInvalida(valor)) avisos.push(`Data inválida: ${nome}`);
   }
   return avisos;
 }
