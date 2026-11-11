@@ -9,6 +9,7 @@ import { PainelNumeros } from './components/PainelNumeros';
 import { TabelaResultados } from './components/TabelaResultados';
 import { ZonaUpload } from './components/ZonaUpload';
 import { ehPdf, separarDuplicados } from './lib/arquivos';
+import { soltarConfete } from './lib/confete';
 import { etapaAtual } from './lib/etapa';
 import { baixarBlob } from './lib/exportar/baixar';
 import { conferirRegistro, normalizarCampo, recalcular } from './lib/parser/campos';
@@ -28,6 +29,9 @@ function valoresUnicos(registros: DesligamentoRecord[], campo: 'municipio' | 'mo
 
 /** Um trabalho de 5000 registros fica bem abaixo disso; acima, nem tentamos ler. */
 const MAX_MB_TRABALHO = 50;
+
+/** De onde veio o lote atual; só o lote vindo de processar solta confete já com 0 REVISAR. */
+type OrigemDoLote = 'processar' | 'trabalho' | 'limpar';
 
 type TrabalhoLido = ReturnType<typeof lerTrabalho>;
 
@@ -73,6 +77,13 @@ export default function App() {
   const botaoProcessar = useRef<HTMLButtonElement>(null);
   const entradaTrabalho = useRef<HTMLInputElement>(null);
   const tituloBoasVindas = useRef<HTMLHeadingElement>(null);
+  /** Confete: um disparo por lote. `origem` é gravada junto de cada setLote; o resto é avaliado no efeito abaixo. */
+  const confete = useRef<{ lote: number; origem: OrigemDoLote; jaSoltou: boolean; revisarAnterior: number }>({
+    lote: 0,
+    origem: 'limpar',
+    jaSoltou: false,
+    revisarAnterior: 0,
+  });
   /** Foco a entregar quando a tela trocar entre boas-vindas e faixa compacta (senão ele cairia no body). */
   const focoPendente = useRef<'processar' | 'boasvindas' | null>(null);
 
@@ -114,6 +125,22 @@ export default function App() {
   const totalOk = registros.filter((registro) => registro.status === 'OK').length;
   const totalRevisar = registros.length - totalOk;
   const revisao = useMemo(() => contarRevisao(registros), [registros]);
+
+  useEffect(() => {
+    const estado = confete.current;
+    const anterior = estado.revisarAnterior;
+    estado.revisarAnterior = totalRevisar;
+    if (estado.lote !== lote) {
+      // Lote novo: só o que acabou de ser processado e já está sem REVISAR conta como conclusão nesta sessão.
+      estado.lote = lote;
+      estado.jaSoltou = estado.origem === 'processar' && registros.length > 0 && totalRevisar === 0;
+    } else if (!estado.jaSoltou && anterior > 0 && totalRevisar === 0) {
+      estado.jaSoltou = true;
+    } else {
+      return;
+    }
+    if (estado.jaSoltou) soltarConfete();
+  }, [lote, totalRevisar, registros.length]);
 
   function zerarFiltros() {
     setMunicipios([]);
@@ -176,6 +203,7 @@ export default function App() {
       });
       if (controlador.signal.aborted) return;
       setRegistros(marcarRevisao(resultado));
+      confete.current.origem = 'processar';
       setLote((atual) => atual + 1);
       setEditadas(new Set());
       zerarFiltros();
@@ -227,6 +255,7 @@ export default function App() {
     setExportado(false);
     setArquivos([]);
     setRegistros(marcarRevisao(lidos));
+    confete.current.origem = 'trabalho';
     setLote((atual) => atual + 1);
     setEditadas(new Set());
     zerarFiltros();
@@ -252,6 +281,7 @@ export default function App() {
     setArquivos([]);
     setRegistros([]);
     setExportado(false);
+    confete.current.origem = 'limpar';
     setLote((atual) => atual + 1);
     setEditadas(new Set());
     setProgresso({ feitos: 0, total: 0 });

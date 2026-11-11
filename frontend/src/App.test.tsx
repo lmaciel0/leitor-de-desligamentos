@@ -6,8 +6,10 @@ import type { DesligamentoRecord } from './tipos';
 
 vi.mock('./lib/processar', () => ({ processarLote: vi.fn() }));
 vi.mock('./lib/exportar/baixar', () => ({ baixarBlob: vi.fn() }));
+vi.mock('./lib/confete', () => ({ soltarConfete: vi.fn() }));
 
 import App from './App';
+import { soltarConfete } from './lib/confete';
 import { baixarBlob } from './lib/exportar/baixar';
 import { guardarImagem, obterImagem } from './lib/ocr/imagens';
 import { processarLote } from './lib/processar';
@@ -573,5 +575,91 @@ describe('App: barra superior', () => {
     const selo = screen.getByText('Local').closest('button');
     expect(selo).not.toBeNull();
     expect(selo).toHaveAccessibleDescription('Seus PDFs não saem deste computador.');
+  });
+});
+
+describe('App: confete', () => {
+  beforeEach(() => {
+    vi.mocked(processarLote).mockReset();
+    vi.mocked(soltarConfete).mockClear();
+    window.localStorage.clear();
+    document.documentElement.className = '';
+  });
+
+  it('lote processado sem nenhum REVISAR solta o confete uma vez', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await screen.findByLabelText('Nome de 1.pdf');
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
+  });
+
+  it('lote processado sem registros não solta o confete', async () => {
+    vi.mocked(processarLote).mockResolvedValue([]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await waitFor(() => expect(screen.getByRole('button', { name: /Processar arquivos/ })).toBeEnabled());
+    expect(soltarConfete).not.toHaveBeenCalled();
+  });
+
+  it('com REVISAR no lote, solta ao zerar e não repete se o REVISAR voltar e zerar de novo', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf');
+    const campo = await screen.findByLabelText('Nome de 2.pdf');
+    expect(soltarConfete).not.toHaveBeenCalled();
+    await userEvent.type(campo, 'B');
+    await screen.findByRole('button', { name: /2 OK/ });
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
+    await userEvent.clear(screen.getByLabelText('Nome de 2.pdf'));
+    await screen.findByRole('button', { name: /1 REVISAR/ });
+    await userEvent.type(screen.getByLabelText('Nome de 2.pdf'), 'C');
+    await screen.findByRole('button', { name: /2 OK/ });
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
+  });
+
+  it('um lote novo solta de novo (no máximo uma vez por lote)', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await screen.findByLabelText('Nome de 1.pdf');
+    await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Processar de novo' }));
+    await waitFor(() => expect(soltarConfete).toHaveBeenCalledTimes(2));
+  });
+
+  it('abrir trabalho que já está todo OK não solta o confete', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1)]));
+    await screen.findByLabelText('Nome de 1.pdf');
+    expect(soltarConfete).not.toHaveBeenCalled();
+  });
+
+  it('abrir trabalho com REVISAR solta ao corrigir o último', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([revisar(1)]));
+    await userEvent.type(await screen.findByLabelText('Nome de 1.pdf'), 'B');
+    await screen.findByRole('button', { name: /1 OK/ });
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
+  });
+
+  it('Limpar dados não solta o confete', async () => {
+    vi.mocked(processarLote).mockResolvedValue([revisar(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await screen.findByLabelText('Nome de 1.pdf');
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    await screen.findByText(/Solte os termos/);
+    expect(soltarConfete).not.toHaveBeenCalled();
+  });
+
+  it('Limpar dados depois de um lote com confete não solta outro', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await screen.findByLabelText('Nome de 1.pdf');
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    await screen.findByText(/Solte os termos/);
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
   });
 });
