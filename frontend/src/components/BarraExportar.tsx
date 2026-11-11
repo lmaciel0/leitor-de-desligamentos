@@ -8,14 +8,17 @@ import type { DesligamentoRecord } from '../tipos';
 interface Props {
   registros: DesligamentoRecord[];
   onErro: (mensagem: string) => void;
+  /** Chamada só depois de o download ser disparado sem erro. */
+  onExportado: () => void;
 }
 
-export function BarraExportar({ registros, onErro }: Props) {
+export function BarraExportar({ registros, onErro, onExportado }: Props) {
   const pendentes = somenteRevisar(registros);
 
   async function exportar(gerar: () => Promise<Blob> | Blob, nomeDoArquivo: string) {
     try {
       baixarBlob(await gerar(), nomeDoArquivo);
+      onExportado();
     } catch (erro) {
       onErro(erro instanceof Error ? `Não foi possível gerar o arquivo: ${erro.message}` : 'Não foi possível gerar o arquivo.');
     }

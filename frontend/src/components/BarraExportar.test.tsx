@@ -38,14 +38,14 @@ describe('BarraExportar', () => {
   });
 
   it('baixa o CSV com o nome esperado', async () => {
-    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} />);
+    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} onExportado={() => {}} />);
     await userEvent.click(screen.getByRole('button', { name: 'Baixar CSV' }));
     expect(baixarBlob).toHaveBeenCalledTimes(1);
     expect(vi.mocked(baixarBlob).mock.calls[0][1]).toBe('desligamentos.csv');
   });
 
   it('baixa o XLSX completo e o XLSX somente com REVISAR', async () => {
-    render(<BarraExportar registros={[registro(1, 'OK'), registro(2, 'REVISAR')]} onErro={() => {}} />);
+    render(<BarraExportar registros={[registro(1, 'OK'), registro(2, 'REVISAR')]} onErro={() => {}} onExportado={() => {}} />);
     await userEvent.click(screen.getByRole('button', { name: 'Baixar XLSX' }));
     await userEvent.click(screen.getByRole('button', { name: 'Baixar somente REVISAR' }));
     const nomes = vi.mocked(baixarBlob).mock.calls.map((chamada) => chamada[1]);
@@ -54,18 +54,36 @@ describe('BarraExportar', () => {
     expect(vi.mocked(gerarXlsx).mock.calls[1][0].map((r) => r.id)).toEqual([2]);
   });
 
+  it('avisa que exportou, uma vez, só depois do download', async () => {
+    const onExportado = vi.fn();
+    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} onExportado={onExportado} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Baixar XLSX' }));
+    expect(baixarBlob).toHaveBeenCalledTimes(1);
+    expect(onExportado).toHaveBeenCalledTimes(1);
+  });
+
+  it('não avisa que exportou quando a geração do arquivo falha', async () => {
+    vi.mocked(gerarXlsx).mockRejectedValueOnce(new Error('falhou'));
+    const onExportado = vi.fn();
+    const onErro = vi.fn();
+    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={onErro} onExportado={onExportado} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Baixar XLSX' }));
+    expect(onErro).toHaveBeenCalledTimes(1);
+    expect(onExportado).not.toHaveBeenCalled();
+  });
+
   it('fica numa região nomeada, para quem navega por landmarks', () => {
-    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} />);
+    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} onExportado={() => {}} />);
     expect(screen.getByRole('region', { name: 'Exportar resultados' })).toBeInTheDocument();
   });
 
   it('avisa que o XLSX é o formato seguro para CPF e NIS', () => {
-    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} />);
+    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} onExportado={() => {}} />);
     expect(screen.getByText(/Prefira o XLSX/)).toBeInTheDocument();
   });
 
   it('desabilita "somente REVISAR" quando não há registros REVISAR', () => {
-    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} />);
+    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} onExportado={() => {}} />);
     expect(screen.getByRole('button', { name: 'Baixar somente REVISAR' })).toBeDisabled();
   });
 });

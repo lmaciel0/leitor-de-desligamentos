@@ -3,11 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvisoReprocessar } from './components/AvisoReprocessar';
 import { BarraExportar } from './components/BarraExportar';
 import { BarraTriagem } from './components/BarraTriagem';
-import { BotaoTema } from './components/BotaoTema';
+import { Cabecalho } from './components/Cabecalho';
 import { Filtros } from './components/Filtros';
 import { TabelaResultados } from './components/TabelaResultados';
 import { ZonaUpload } from './components/ZonaUpload';
 import { ehPdf, separarDuplicados } from './lib/arquivos';
+import { etapaAtual } from './lib/etapa';
 import { baixarBlob } from './lib/exportar/baixar';
 import { conferirRegistro, normalizarCampo, recalcular } from './lib/parser/campos';
 import { limparImagens } from './lib/ocr/imagens';
@@ -51,6 +52,8 @@ export default function App() {
   const [registros, setRegistros] = useState<DesligamentoRecord[]>([]);
   /** Número do lote atual: sobe ao terminar de processar, abrir trabalho e limpar os dados. */
   const [, setLote] = useState(0);
+  /** Vira true ao baixar XLSX/CSV; qualquer edição, novo lote, trabalho aberto ou limpeza volta a false. */
+  const [exportado, setExportado] = useState(false);
   const [municipios, setMunicipios] = useState<string[]>([]);
   const [motivos, setMotivos] = useState<string[]>([]);
   const [statusAtivo, setStatusAtivo] = useState<Status | null>(null);
@@ -131,6 +134,7 @@ export default function App() {
       setErro('Selecione ao menos um PDF.');
       return;
     }
+    setExportado(false);
     controladorRef.current?.abort();
     const controlador = new AbortController();
     controladorRef.current = controlador;
@@ -202,6 +206,7 @@ export default function App() {
     setEtapa('');
     limparImagens();
     setTrabalhoPendente(null);
+    setExportado(false);
     setArquivos([]);
     setRegistros(marcarRevisao(lidos));
     setLote((atual) => atual + 1);
@@ -227,6 +232,7 @@ export default function App() {
     setTrabalhoPendente(null);
     setArquivos([]);
     setRegistros([]);
+    setExportado(false);
     setLote((atual) => atual + 1);
     setEditadas(new Set());
     setProgresso({ feitos: 0, total: 0 });
@@ -237,6 +243,7 @@ export default function App() {
   }
 
   function editar(id: number, campo: CampoEditavel, valor: string) {
+    setExportado(false);
     setEditadas((atuais) => new Set(atuais).add(id));
     setRegistros((atuais) =>
       atuais.map((registro) =>
@@ -247,6 +254,7 @@ export default function App() {
 
   /** As marcações de conferência são do operador: só "validado" de um registro de OCR muda o status, e todas contam como edição ao reprocessar. */
   function conferir(id: number, campo: CampoConferencia, marcado: boolean) {
+    setExportado(false);
     setEditadas((atuais) => new Set(atuais).add(id));
     setRegistros((atuais) =>
       atuais.map((registro) => (registro.id === id ? marcarRevisao([conferirRegistro(registro, campo, marcado)])[0] : registro)),
@@ -255,15 +263,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-linha bg-fundo text-forte">
-        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-6 md:flex-row md:items-end md:justify-between md:px-10">
-          <h1 className="text-3xl md:text-4xl">Leitor de desligamentos</h1>
-          <div className="flex flex-col gap-3 md:items-end">
-            <BotaoTema escuro={tema === 'escuro'} onAlternar={alternarTema} />
-            <p className="text-sm text-suave">Seus PDFs não saem deste computador.</p>
-          </div>
-        </div>
-      </header>
+      <Cabecalho
+        etapa={etapaAtual({ arquivos: arquivos.length, registros: registros.length, carregando, exportado })}
+        processando={carregando}
+        escuro={tema === 'escuro'}
+        onAlternarTema={alternarTema}
+      />
 
       <main className="mx-auto max-w-[1400px] px-4 pb-8 pt-6 md:px-10">
         <ZonaUpload
@@ -360,7 +365,7 @@ export default function App() {
         )}
       </main>
 
-      {registros.length > 0 && <BarraExportar registros={registros} onErro={setErro} />}
+      {registros.length > 0 && <BarraExportar registros={registros} onErro={setErro} onExportado={() => setExportado(true)} />}
     </div>
   );
 }

@@ -388,3 +388,96 @@ describe('App', () => {
     expect(screen.getByLabelText('Município de 1.pdf')).toBeInTheDocument();
   });
 });
+
+describe('App: barra superior', () => {
+  beforeEach(() => {
+    vi.mocked(processarLote).mockReset();
+    vi.mocked(baixarBlob).mockClear();
+    window.localStorage.clear();
+    document.documentElement.className = '';
+  });
+
+  const etapaAtual = () => {
+    const atual = within(screen.getByRole('navigation', { name: 'Etapas' }))
+      .getAllByRole('listitem')
+      .filter((item) => item.getAttribute('aria-current') === 'step');
+    return atual.map((item) => item.textContent?.replace(/concluída/, '').trim());
+  };
+
+  it('acompanha o fluxo: enviar, processar, revisar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    expect(etapaAtual()).toEqual(['Enviar']);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), [new File(['x'], '1.pdf', { type: 'application/pdf' })]);
+    expect(etapaAtual()).toEqual(['Processar']);
+    await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+    await screen.findByRole('button', { name: /1 OK/ });
+    expect(etapaAtual()).toEqual(['Revisar']);
+  });
+
+  it('exportar conclui todas as etapas; editar depois volta para Revisar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await waitFor(() => expect(etapaAtual()).toEqual([]));
+    expect(within(screen.getByRole('navigation', { name: 'Etapas' })).getAllByText('concluída')).toHaveLength(4);
+    await userEvent.type(screen.getByLabelText('Nome de 2.pdf'), 'B');
+    expect(etapaAtual()).toEqual(['Revisar']);
+  });
+
+  it('salvar trabalho não conta como exportar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Salvar trabalho' }));
+    expect(etapaAtual()).toEqual(['Revisar']);
+  });
+
+  it('marcar conferência depois de exportar volta para Revisar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await waitFor(() => expect(etapaAtual()).toEqual([]));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Recebe CMIC: 1.pdf' }));
+    expect(etapaAtual()).toEqual(['Revisar']);
+  });
+
+  it('processar de novo depois de exportar zera o "exportado"', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await waitFor(() => expect(etapaAtual()).toEqual([]));
+    await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Processar de novo' }));
+    await waitFor(() => expect(etapaAtual()).toEqual(['Revisar']));
+  });
+
+  it('Limpar dados volta para Enviar, inclusive depois de exportar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    expect(etapaAtual()).toEqual(['Enviar']);
+  });
+
+  it('abrir um trabalho depois de exportar volta para Revisar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(7)]));
+    await userEvent.click(await screen.findByRole('button', { name: 'Abrir trabalho' }));
+    await waitFor(() => expect(etapaAtual()).toEqual(['Revisar']));
+  });
+
+  it('o selo "Local" explica que os PDFs não saem do computador', () => {
+    render(<App />);
+    const selo = screen.getByText('Local').closest('button');
+    expect(selo).not.toBeNull();
+    expect(selo).toHaveAccessibleDescription('Seus PDFs não saem deste computador.');
+  });
+});

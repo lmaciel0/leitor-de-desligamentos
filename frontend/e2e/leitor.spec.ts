@@ -136,3 +136,28 @@ test('um PDF que trava o worker não congela o lote: vira REVISAR por tempo e o 
   await expect(page.getByRole('list', { name: 'Pendências de travado.pdf' })).toHaveText('PDF demorou mais de 20 s para ser lido');
   expect(workersCriados).toBe(2);
 });
+
+test('a barra superior cabe em 360 px, sem rolagem horizontal, e traz o texto da etapa', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  await expect(page.getByText('Etapa 1 de 4 · Enviar')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Etapas' })).toBeHidden();
+  const medidas = await page.evaluate(() => ({
+    pagina: document.documentElement.scrollWidth,
+    cabecalho: document.querySelector('header')!.scrollWidth,
+  }));
+  expect(medidas.pagina).toBeLessThanOrEqual(360);
+  expect(medidas.cabecalho).toBeLessThanOrEqual(360);
+  await semViolacoes(page);
+});
+
+test('em tela larga, a barra superior tem 56 px e mostra a linha de etapas', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await expect(page.getByRole('navigation', { name: 'Etapas' })).toBeVisible();
+  await expect(page.getByText('Etapa 1 de 4 · Enviar')).toBeHidden();
+  const altura = await page.evaluate(() => document.querySelector('header')!.getBoundingClientRect().height);
+  expect(Math.round(altura)).toBe(57); // 56 px de conteúdo + 1 px da borda inferior
+  await page.getByText('Local').hover();
+  await expect(page.getByRole('tooltip')).toBeVisible();
+});
