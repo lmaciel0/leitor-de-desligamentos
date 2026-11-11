@@ -86,4 +86,12 @@ describe('BarraExportar', () => {
     render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} onExportado={() => {}} />);
     expect(screen.getByRole('button', { name: 'Baixar somente REVISAR' })).toBeDisabled();
   });
+
+  it('fica translúcida com blur e destaca o XLSX como ação principal', () => {
+    render(<BarraExportar registros={[registro(1, 'OK')]} onErro={() => {}} onExportado={() => {}} />);
+    const barra = screen.getByRole('region', { name: 'Exportar resultados' });
+    expect(barra).toHaveClass('bg-fundo/90', 'backdrop-blur', 'border-linha');
+    expect(screen.getByRole('button', { name: 'Baixar XLSX' })).toHaveClass('botao-primario');
+    expect(screen.getByRole('button', { name: 'Baixar CSV' })).toHaveClass('botao-secundario');
+  });
 });

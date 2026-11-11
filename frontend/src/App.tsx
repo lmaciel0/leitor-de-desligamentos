@@ -2,6 +2,7 @@ import { FolderOpen, LoaderCircle, Play, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvisoReprocessar } from './components/AvisoReprocessar';
 import { BarraExportar } from './components/BarraExportar';
+import { BoasVindas } from './components/BoasVindas';
 import { Cabecalho } from './components/Cabecalho';
 import { Filtros } from './components/Filtros';
 import { PainelNumeros } from './components/PainelNumeros';
@@ -262,6 +263,14 @@ export default function App() {
     );
   }
 
+  /** Sem PDFs, sem resultados e sem lote em andamento: só as boas-vindas. */
+  const inicial = arquivos.length === 0 && registros.length === 0 && !carregando;
+  const avisoVisivel = aviso ? (
+    <p role="status" className="mt-3 text-sm text-forte">
+      {aviso}
+    </p>
+  ) : null;
+
   return (
     <div className="min-h-screen">
       <Cabecalho
@@ -272,49 +281,76 @@ export default function App() {
       />
 
       <main className="mx-auto max-w-[1400px] px-4 pb-8 pt-6 md:px-10">
-        <ZonaUpload
-          arquivos={arquivos}
-          onAdicionar={adicionar}
-          onRemover={(indice) => setArquivos((atuais) => atuais.filter((_, posicao) => posicao !== indice))}
-        />
-        {aviso && (
-          <p role="status" className="mt-3 text-sm text-forte">
-            {aviso}
-          </p>
-        )}
+        {inicial ? (
+          <>
+            <BoasVindas onAdicionar={adicionar} onAbrirTrabalho={(arquivo) => void escolherTrabalho(arquivo)} entradaTrabalho={entradaTrabalho} />
+            {avisoVisivel}
+          </>
+        ) : (
+          <>
+            <ZonaUpload
+              arquivos={arquivos}
+              onAdicionar={adicionar}
+              onRemover={(indice) => setArquivos((atuais) => atuais.filter((_, posicao) => posicao !== indice))}
+            />
+            {avisoVisivel}
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button ref={botaoProcessar} type="button" className="botao-primario" onClick={pedirProcessamento} disabled={carregando}>
-            {carregando ? <LoaderCircle className="animate-spin" size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
-            {carregando ? `Processando ${progresso.feitos} de ${progresso.total}` : 'Processar arquivos'}
-          </button>
-          <button type="button" className="botao-secundario" onClick={limpar}>
-            <Trash2 size={16} aria-hidden="true" />
-            Limpar dados
-          </button>
-          <div className="flex flex-col gap-3 sm:ml-auto sm:flex-row">
-            <label className="botao-secundario cursor-pointer focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-anel">
-              <FolderOpen size={16} aria-hidden="true" />
-              Abrir trabalho
-              <input
-                ref={entradaTrabalho}
-                type="file"
-                accept="application/json,.json"
-                className="sr-only"
-                aria-label="Abrir trabalho"
-                onChange={(evento) => {
-                  void escolherTrabalho(evento.target.files?.[0]);
-                  evento.target.value = '';
-                }}
-              />
-            </label>
-            <button type="button" className="botao-secundario" onClick={salvarTrabalho} disabled={registros.length === 0}>
-              <Save size={16} aria-hidden="true" />
-              Salvar trabalho
-            </button>
-          </div>
-        </div>
-        {carregando && etapa && <p className="mt-3 text-sm text-suave">{etapa}</p>}
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative">
+                <button ref={botaoProcessar} type="button" className="botao-primario w-full sm:w-auto" onClick={pedirProcessamento} disabled={carregando}>
+                  {carregando ? <LoaderCircle className="animate-spin" size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
+                  {carregando ? `Processando ${progresso.feitos} de ${progresso.total}` : 'Processar arquivos'}
+                </button>
+                {carregando && (
+                  <div
+                    role="progressbar"
+                    aria-label="Progresso do processamento"
+                    aria-valuemin={0}
+                    aria-valuemax={progresso.total}
+                    aria-valuenow={progresso.feitos}
+                    className="absolute inset-x-0 -bottom-2 h-[3px] overflow-hidden rounded-full bg-linha"
+                  >
+                    <div
+                      className="h-full rounded-full bg-coral transition-[width] ease-[var(--curva)] [transition-duration:var(--duracao-media)]"
+                      style={{ width: `${progresso.total > 0 ? Math.min(100, (progresso.feitos / progresso.total) * 100) : 0}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+              <button type="button" className="botao-secundario" onClick={limpar}>
+                <Trash2 size={16} aria-hidden="true" />
+                Limpar dados
+              </button>
+              <div className="flex flex-col gap-3 sm:ml-auto sm:flex-row">
+                <label className="botao-secundario cursor-pointer focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-anel">
+                  <FolderOpen size={16} aria-hidden="true" />
+                  Abrir trabalho
+                  <input
+                    ref={entradaTrabalho}
+                    type="file"
+                    accept="application/json,.json"
+                    className="sr-only"
+                    aria-label="Abrir trabalho"
+                    onChange={(evento) => {
+                      void escolherTrabalho(evento.target.files?.[0]);
+                      evento.target.value = '';
+                    }}
+                  />
+                </label>
+                <button type="button" className="botao-secundario" onClick={salvarTrabalho} disabled={registros.length === 0}>
+                  <Save size={16} aria-hidden="true" />
+                  Salvar trabalho
+                </button>
+              </div>
+            </div>
+            {carregando && etapa && (
+              <div role="status" className="mt-4 flex items-center gap-3 rounded-cartao border border-linha bg-superficie p-3 text-sm text-forte shadow-cartao">
+                <LoaderCircle className="shrink-0 animate-spin text-coral-texto" size={18} aria-hidden="true" />
+                <span>{etapa}</span>
+              </div>
+            )}
+          </>
+        )}
         {confirmando && (
           <AvisoReprocessar linhasEditadas={editadas.size} onConfirmar={() => void processar()} onCancelar={cancelarReprocesso} />
         )}
@@ -337,9 +373,7 @@ export default function App() {
           </p>
         )}
 
-        {registros.length === 0 ? (
-          <p className="mt-10 text-sm text-suave">Escolha um ou mais PDFs e clique em Processar arquivos.</p>
-        ) : (
+        {registros.length > 0 && (
           <section className="mt-8 space-y-4" aria-label="Resultados">
             <PainelNumeros
               total={registros.length}

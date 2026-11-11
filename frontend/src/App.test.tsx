@@ -43,7 +43,8 @@ const revisar = (id: number) =>
 async function enviarEProcessar(...nomes: string[]) {
   const arquivos = nomes.map((nome) => new File(['x'], nome, { type: 'application/pdf' }));
   await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), arquivos);
-  await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+  // Adicionar é assíncrono (confere duplicados) e o botão só existe depois que o primeiro arquivo entra.
+  await userEvent.click(await screen.findByRole('button', { name: /Processar arquivos/ }));
 }
 
 describe('App', () => {
@@ -84,11 +85,59 @@ describe('App', () => {
     expect(screen.getByLabelText('Nome de 2.pdf')).toBeInTheDocument();
   });
 
-  it('exige ao menos um PDF para processar', async () => {
+  it('na tela inicial mostra as boas-vindas e nenhum botão de processar', () => {
     render(<App />);
-    await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+    expect(screen.getByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Processar arquivos/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Escolha um ou mais PDFs e clique em Processar arquivos.')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('zona-upload')).toHaveLength(1);
+    expect(screen.getAllByLabelText('Abrir trabalho')).toHaveLength(1);
+  });
+
+  it('depois de subir um PDF as boas-vindas somem e aparecem a zona compacta e o botão', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    expect(await screen.findByRole('button', { name: /Processar arquivos/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Solte os termos de desligamento aqui' })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('zona-upload')).toHaveLength(1);
+    expect(screen.getByLabelText(/escolha arquivos/i)).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Abrir trabalho')).toHaveLength(1);
+  });
+
+  it('exige ao menos um PDF para processar (trabalho aberto, sem arquivos)', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1)]));
+    await userEvent.click(await screen.findByRole('button', { name: /Processar arquivos/ }));
     expect(screen.getByText('Selecione ao menos um PDF.')).toBeInTheDocument();
     expect(processarLote).not.toHaveBeenCalled();
+  });
+
+  it('durante o processamento mostra a barra de progresso junto do botão', async () => {
+    vi.mocked(processarLote).mockImplementation((_arquivos, _agora, opcoes) => {
+      opcoes?.onProgresso?.(1, 3);
+      return new Promise<DesligamentoRecord[]>(() => {});
+    });
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf', '3.pdf');
+    const barra = await screen.findByRole('progressbar');
+    expect(barra).toHaveAttribute('aria-valuenow', '1');
+    expect(barra).toHaveAttribute('aria-valuemin', '0');
+    expect(barra).toHaveAttribute('aria-valuemax', '3');
+    expect(barra).toHaveAccessibleName();
+    const botao = screen.getByRole('button', { name: 'Processando 1 de 3' });
+    expect(botao).toBeDisabled();
+    expect(botao.parentElement).toContainElement(barra);
+  });
+
+  it('a etapa do lote aparece num cartão com role status', async () => {
+    vi.mocked(processarLote).mockImplementation((_arquivos, _agora, opcoes) => {
+      opcoes?.onEtapa?.('Lendo página 2 por OCR...');
+      return new Promise<DesligamentoRecord[]>(() => {});
+    });
+    render(<App />);
+    await enviarEProcessar('a.pdf');
+    const texto = await screen.findByText('Lendo página 2 por OCR...');
+    expect(texto.closest('[role="status"]')).not.toBeNull();
   });
 
   it('clicar em REVISAR na triagem filtra e clicar de novo remove o filtro', async () => {
@@ -206,7 +255,10 @@ describe('App', () => {
   it('salvar trabalho fica desabilitado sem resultados e baixa um .json com os registros e conferências', async () => {
     vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
     render(<App />);
-    expect(screen.getByRole('button', { name: 'Salvar trabalho' })).toBeDisabled();
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], '1.pdf', { type: 'application/pdf' }));
+    expect(await screen.findByRole('button', { name: 'Salvar trabalho' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    expect(await screen.findByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
     await enviarEProcessar('1.pdf', '2.pdf');
     await screen.findByRole('button', { name: /1 OK/ });
     await userEvent.click(screen.getByRole('checkbox', { name: 'Está validado: 1.pdf' }));
@@ -330,8 +382,9 @@ describe('App', () => {
 
   it('Limpar dados descarta as imagens guardadas', async () => {
     render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], '1.pdf', { type: 'application/pdf' }));
     guardarImagem(1, 'data:image/jpeg;base64,AAAA');
-    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Limpar dados' }));
     expect(obterImagem(1)).toBeUndefined();
   });
 
@@ -346,7 +399,8 @@ describe('App', () => {
     concluir([registro(1)]);
     await waitFor(() => expect(screen.queryByLabelText('Nome de 1.pdf')).not.toBeInTheDocument());
     expect(within(document.body).queryByText('1.pdf')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Processar arquivos/ })).toBeEnabled();
+    // Sem arquivos nem resultados, volta a tela de boas-vindas (e o botão de processar some com a barra de ações).
+    expect(screen.getByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
   });
 
   it('um CPF digitado com pontuação é normalizado e o registro fica OK', async () => {

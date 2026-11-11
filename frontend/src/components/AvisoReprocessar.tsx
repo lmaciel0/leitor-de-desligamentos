@@ -46,7 +46,7 @@ export function AvisoReprocessar({
       role="alertdialog"
       aria-labelledby="aviso-reprocessar-titulo"
       aria-describedby="aviso-reprocessar-texto"
-      className="mt-4 rounded-md border-2 border-forte bg-superficie p-4"
+      className="mt-4 rounded-cartao border-2 border-forte bg-superficie p-4 shadow-cartao"
     >
       <p id="aviso-reprocessar-titulo" className="font-semibold text-forte">
         {titulo}

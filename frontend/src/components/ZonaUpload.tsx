@@ -25,12 +25,14 @@ export function ZonaUpload({ arquivos, onAdicionar, onRemover }: Props) {
           setArrastando(false);
           onAdicionar(Array.from(evento.dataTransfer.files));
         }}
-        className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed px-5 py-6 text-forte focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-anel ${
-          arrastando ? 'border-forte bg-coral-fundo' : 'border-apagado bg-superficie'
+        className={`flex cursor-pointer items-center gap-3 rounded-[12px] border-[1.5px] border-dashed px-[18px] py-4 text-forte transition-colors [transition-duration:var(--duracao-curta)] focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-anel ${
+          arrastando ? 'border-coral bg-coral-fundo' : 'border-apagado bg-superficie/60'
         }`}
       >
-        <Upload size={22} aria-hidden="true" />
-        <span className="font-medium">Solte os PDFs aqui ou escolha arquivos</span>
+        <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[9px] bg-coral-claro text-coral-texto">
+          <Upload size={18} aria-hidden="true" />
+        </span>
+        <span className="font-semibold">Solte os PDFs aqui ou escolha arquivos</span>
         <input
           type="file"
           accept="application/pdf,.pdf"
