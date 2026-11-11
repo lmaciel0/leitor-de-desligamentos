@@ -37,6 +37,7 @@ vi.mock('./pdf/carregarPdfjs', () => ({
           : { promise: Promise.resolve(documentoSimples()), destroy: async () => {} },
     };
   }),
+  workerEmUso: vi.fn(() => null),
   reiniciarWorker: vi.fn(async () => {}),
 }));
 

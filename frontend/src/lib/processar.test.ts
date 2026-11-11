@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { criarPdf, type TextoNaPagina } from '../testes/criarPdf';
 
-vi.mock('./ocr/lerPorOcr', () => ({ lerPorOcr: vi.fn(), reiniciarOcr: vi.fn(async () => {}) }));
+vi.mock('./ocr/lerPorOcr', () => ({ lerPorOcr: vi.fn(), geracaoDoOcr: vi.fn(() => 0), reiniciarOcr: vi.fn(async () => {}) }));
 
 import { PENDENCIA_OCR } from './parser/campos';
 import { LimiteExcedido } from './pdf/extrairTexto';
@@ -251,6 +251,15 @@ describe('processarArquivo com PDF escaneado (OCR)', () => {
     expect(reiniciarOcr).toHaveBeenCalledTimes(1);
   });
 
+  it('lote já cancelado antes de o OCR começar: não lê nem reinicia nada (o motor pode ser do lote seguinte)', async () => {
+    const controlador = new AbortController();
+    controlador.abort();
+    const registro = await processarArquivo(1, await escaneado(), '09/10/2026', {}, { sinalDoLote: controlador.signal });
+    expect(registro).toMatchObject({ status: 'REVISAR', inconsistencias: ['PDF não lido: o lote foi cancelado'] });
+    expect(lerPorOcr).not.toHaveBeenCalled();
+    expect(reiniciarOcr).not.toHaveBeenCalled();
+  });
+
   it('avisa cada página lida por OCR, também pelo lote', async () => {
     vi.mocked(lerPorOcr).mockImplementation(async (_pdf, opcoes) => {
       opcoes.aoComecar?.(2);
@@ -261,6 +270,7 @@ describe('processarArquivo com PDF escaneado (OCR)', () => {
     const onEtapa = vi.fn();
     await processarLote([await escaneado()], new Date(), { onEtapa });
     expect(onEtapa.mock.calls).toEqual([
+      ['Carregando o OCR…'],
       ['Lendo imagem.pdf por OCR (página 1 de 2)'],
       ['Lendo imagem.pdf por OCR (página 2 de 2)'],
     ]);

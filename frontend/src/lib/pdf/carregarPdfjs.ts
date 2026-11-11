@@ -1,6 +1,8 @@
 type Pdfjs = typeof import('pdfjs-dist/legacy/build/pdf.mjs');
 
 let carregando: Promise<Pdfjs> | null = null;
+/** O módulo já carregado, para ler o worker em uso sem esperar (ver reiniciarWorker). */
+let carregado: Pdfjs | null = null;
 
 function criarWorker(): Worker {
   return new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
@@ -17,6 +19,7 @@ export function carregarPdfjs(): Promise<Pdfjs> {
       if (typeof Worker !== 'undefined' && !pdfjs.GlobalWorkerOptions.workerPort) {
         pdfjs.GlobalWorkerOptions.workerPort = criarWorker();
       }
+      carregado = pdfjs;
       return pdfjs;
     },
     (erro: unknown) => {
@@ -28,10 +31,21 @@ export function carregarPdfjs(): Promise<Pdfjs> {
   return carregando;
 }
 
-/** Troca o worker compartilhado por um novo (usado quando um PDF estoura o tempo e pode ter travado o atual). */
-export async function reiniciarWorker(): Promise<void> {
-  if (!carregando || typeof Worker === 'undefined') return;
-  const pdfjs = await carregando;
-  pdfjs.GlobalWorkerOptions.workerPort?.terminate();
-  pdfjs.GlobalWorkerOptions.workerPort = criarWorker();
+/** O worker compartilhado em uso agora (null antes de o pdf.js carregar ou fora do navegador). */
+export function workerEmUso(): Worker | null {
+  return carregado?.GlobalWorkerOptions.workerPort ?? null;
+}
+
+/**
+ * Troca o worker compartilhado por um novo (usado quando um PDF estoura o tempo e pode ter travado o atual).
+ * Recebe o worker que o arquivo usou (`workerEmUso()` no começo da leitura) e só encerra esse:
+ * se ele já foi trocado (por outro pedido, de outro arquivo ou lote), o worker novo, que pode
+ * estar lendo o PDF de outro lote, fica.
+ */
+export async function reiniciarWorker(aposentado: Worker | null): Promise<void> {
+  if (!carregado || typeof Worker === 'undefined' || !aposentado) return;
+  const { GlobalWorkerOptions } = carregado;
+  if (GlobalWorkerOptions.workerPort !== aposentado) return;
+  aposentado.terminate();
+  GlobalWorkerOptions.workerPort = criarWorker();
 }

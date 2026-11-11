@@ -1,5 +1,5 @@
 import { LimiteExcedido } from '../pdf/extrairTexto';
-import { prepararMotor, reconhecerImagem, reiniciarMotor } from './motorOcr';
+import { geracaoDoMotor, prepararMotor, reconhecerImagem, reiniciarMotor } from './motorOcr';
 import { normalizarTextoOcr } from './normalizarTextoOcr';
 import { abrirPdfParaOcr, miniatura, type PdfRasterizavel } from './rasterizar';
 
@@ -101,7 +101,15 @@ export async function lerPorOcr(
   }
 }
 
-/** Encerra o motor de OCR real (preso ou interrompido); o próximo PDF escaneado cria outro. */
-export function reiniciarOcr(): Promise<void> {
-  return reiniciarMotor();
+/** Geração do motor de OCR em uso: guarde antes de ler e passe a `reiniciarOcr`. */
+export function geracaoDoOcr(): number {
+  return geracaoDoMotor();
+}
+
+/**
+ * Encerra o motor de OCR real da geração dada (preso ou interrompido); o próximo PDF escaneado cria outro.
+ * Se essa geração já foi trocada, o motor atual (talvez de outro lote) fica.
+ */
+export function reiniciarOcr(geracao: number): Promise<void> {
+  return reiniciarMotor(geracao);
 }
