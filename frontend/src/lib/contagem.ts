@@ -35,8 +35,12 @@ export function useContagem(alvo: number, chave: number, duracaoMs = 600): numbe
     let pedido = 0;
     let inicio: number | null = null;
     const passo = (agora: number) => {
-      // O alvo mudou no meio do caminho: a animação perdeu o sentido e o render já mostra o novo alvo.
-      if (alvoAtual.current !== alvoDaAnimacao) return;
+      // O alvo mudou no meio do caminho: a animação perdeu o sentido. Grava o quadro final do novo alvo,
+      // senão sobraria um quadro do meio que reapareceria se o alvo voltasse ao valor antigo.
+      if (alvoAtual.current !== alvoDaAnimacao) {
+        setQuadro({ chave, alvo: alvoAtual.current, valor: alvoAtual.current });
+        return;
+      }
       inicio ??= agora;
       const progresso = Math.min(1, (agora - inicio) / duracaoMs);
       setQuadro({ chave, alvo: alvoDaAnimacao, valor: Math.round(alvoDaAnimacao * saida(progresso)) });

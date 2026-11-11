@@ -182,6 +182,28 @@ describe('App', () => {
     expect(titulo).toHaveFocus();
   });
 
+  it('remover o último PDF antes de processar devolve as boas-vindas com o foco no título', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Remover a.pdf' }));
+    const titulo = await screen.findByRole('heading', { name: 'Solte os termos de desligamento aqui' });
+    expect(titulo).toHaveFocus();
+  });
+
+  it('abrir um trabalho a partir das boas-vindas leva o foco ao campo "Abrir trabalho" da faixa compacta', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1)]));
+    await screen.findByRole('checkbox', { name: 'Está validado: 1.pdf' });
+    expect(screen.getByLabelText('Abrir trabalho')).toHaveFocus();
+  });
+
+  it('abrir um trabalho sem registros continua nas boas-vindas', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([]));
+    expect(await screen.findByText(/Trabalho aberto: 0 registros/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
+  });
+
   it('clicar em REVISAR na triagem filtra e clicar de novo remove o filtro', async () => {
     vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
     render(<App />);

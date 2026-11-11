@@ -17,9 +17,13 @@ const CARTAO = 'rounded-cartao border p-3.5 sm:p-4';
 const NUMERO = 'tabular block font-titulo text-[28px] font-extrabold leading-none';
 const ROTULO = 'mt-1.5 block text-xs font-semibold';
 
-function Numero({ valor, lote, className }: { valor: number; lote: number; className: string }) {
+function Numero({ valor, lote, className, oculto }: { valor: number; lote: number; className: string; oculto?: boolean }) {
   const exibido = useContagem(valor, lote);
-  return <span className={`${NUMERO} ${className}`}>{exibido}</span>;
+  return (
+    <span aria-hidden={oculto ? 'true' : undefined} className={`${NUMERO} ${className}`}>
+      {exibido}
+    </span>
+  );
 }
 
 interface CartaoStatusProps {
@@ -62,7 +66,9 @@ export function PainelNumeros({ total, ok, revisar, conferidos, totalRevisao, st
   return (
     <div role="group" aria-label="Triagem por status" className="grid grid-cols-2 gap-2.5 md:flex">
       <div className={`${CARTAO} border-linha bg-superficie md:flex-1`}>
-        <Numero valor={total} lote={lote} className="text-forte" />
+        {/* O número animado passa por valores do meio do caminho: o leitor de tela lê só o total final. */}
+        <Numero valor={total} lote={lote} className="text-forte" oculto />
+        <span className="sr-only">{total}</span>
         <span className={`${ROTULO} text-suave`}>arquivos lidos</span>
       </div>
       {cartoes.map(({ status, quantidade }) => (

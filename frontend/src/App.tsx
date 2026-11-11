@@ -85,7 +85,7 @@ export default function App() {
     revisarAnterior: 0,
   });
   /** Foco a entregar quando a tela trocar entre boas-vindas e faixa compacta (senão ele cairia no body). */
-  const focoPendente = useRef<'processar' | 'boasvindas' | null>(null);
+  const focoPendente = useRef<'processar' | 'boasvindas' | 'trabalho' | null>(null);
 
   useEffect(() => {
     aplicarTema(tema);
@@ -99,6 +99,7 @@ export default function App() {
     const destino = focoPendente.current;
     if (destino === 'processar' && !inicial) botaoProcessar.current?.focus();
     else if (destino === 'boasvindas' && inicial) tituloBoasVindas.current?.focus();
+    else if (destino === 'trabalho' && !inicial) entradaTrabalho.current?.focus();
     else return;
     focoPendente.current = null;
   }, [inicial]);
@@ -156,6 +157,12 @@ export default function App() {
     if (inicial && aceitos.length > 0) focoPendente.current = 'processar';
     setArquivos((atuais) => [...atuais, ...aceitos]);
     setAviso(avisoDeArquivos(repetidos, naoPdf));
+  }
+
+  function removerArquivo(indice: number) {
+    // Tirar o último PDF sem resultados volta às boas-vindas; o botão focado some, então o foco vai ao título.
+    if (arquivos.length === 1 && registros.length === 0) focoPendente.current = 'boasvindas';
+    setArquivos((atuais) => atuais.filter((_, posicao) => posicao !== indice));
   }
 
   /** Se já há resultados, reprocessar os substitui e descarta as edições: pede confirmação antes. */
@@ -254,6 +261,8 @@ export default function App() {
     setTrabalhoPendente(null);
     setExportado(false);
     setArquivos([]);
+    // Das boas-vindas, o input focado desmonta com a troca de tela: o foco vai ao input da faixa compacta.
+    if (inicial && lidos.length > 0) focoPendente.current = 'trabalho';
     setRegistros(marcarRevisao(lidos));
     confete.current.origem = 'trabalho';
     setLote((atual) => atual + 1);
@@ -336,7 +345,7 @@ export default function App() {
             <ZonaUpload
               arquivos={arquivos}
               onAdicionar={adicionar}
-              onRemover={(indice) => setArquivos((atuais) => atuais.filter((_, posicao) => posicao !== indice))}
+              onRemover={removerArquivo}
             />
             {avisoVisivel}
 

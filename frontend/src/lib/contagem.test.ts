@@ -56,6 +56,23 @@ describe('useContagem', () => {
     expect(result.current).toBe(10);
   });
 
+  it('o alvo mudando no meio da animação e voltando ao original devolve o alvo original', () => {
+    const { result, rerender } = renderHook(({ alvo }) => useContagem(alvo, 1, 600), { initialProps: { alvo: 42 } });
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    rerender({ alvo: 41 });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    rerender({ alvo: 42 });
+    expect(result.current).toBe(42);
+    act(() => {
+      vi.advanceTimersByTime(700);
+    });
+    expect(result.current).toBe(42);
+  });
+
   it('uma chave nova depois de pronto anima de novo a partir de 0', () => {
     const { result, rerender } = renderHook(({ chave }) => useContagem(42, chave, 600), { initialProps: { chave: 1 } });
     act(() => {

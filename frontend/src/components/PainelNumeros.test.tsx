@@ -81,8 +81,20 @@ describe('PainelNumeros', () => {
   it('mostra o total de arquivos lidos num cartão que não é botão', () => {
     renderizar({ total: 24 });
     expect(screen.getByText('arquivos lidos')).toBeInTheDocument();
-    expect(screen.getByText('24')).toBeInTheDocument();
+    expect(screen.getAllByText('24').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /arquivos lidos/ })).not.toBeInTheDocument();
+  });
+
+  it('o cartão de arquivos lidos expõe o total final a leitores de tela enquanto o número visível anima', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    renderizar({ total: 24 });
+    const rotulo = screen.getByText('arquivos lidos');
+    const cartao = rotulo.parentElement as HTMLElement;
+    const animado = cartao.querySelector('[aria-hidden="true"]');
+    expect(animado).not.toBeNull();
+    expect(animado).toHaveTextContent('0');
+    const leitor = cartao.querySelector('.sr-only');
+    expect(leitor).toHaveTextContent('24');
   });
 
   it('mostra o progresso da revisão com role progressbar', () => {
