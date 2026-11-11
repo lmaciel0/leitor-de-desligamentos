@@ -173,6 +173,19 @@ export function nisTemDigitoValido(nis: string): boolean {
   return (digito >= 10 ? 0 : digito) === Number(nis[10]);
 }
 
+/** Pendência fixa de todo registro lido por OCR: o texto reconhecido sempre precisa de conferência. */
+export const PENDENCIA_OCR = 'PDF lido por OCR: conferir os campos';
+
+const DIGITOS_DO_CPF_NO_NIB = 10;
+
+/** O NIB da Caixa começa com os 10 primeiros dígitos do CPF. Campo faltando não é divergência: já tem a própria pendência. */
+export function nibDivergeDoCpf(campos: Pick<CamposDesligamento, 'cpf' | 'nib'>): boolean {
+  const cpf = campos.cpf?.trim() ?? '';
+  const nib = campos.nib?.trim() ?? '';
+  if (!nib || cpf.length < DIGITOS_DO_CPF_NO_NIB) return false;
+  return nib !== cpf.slice(0, DIGITOS_DO_CPF_NO_NIB);
+}
+
 export function inconsistencies(campos: CamposDesligamento): string[] {
   const problemas = CAMPOS_EDITAVEIS.filter((campo) => !campos[campo]?.trim()).map((campo) => campo.toUpperCase());
   const cpf = campos.cpf?.trim() ?? '';

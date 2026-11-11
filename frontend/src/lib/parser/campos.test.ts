@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DesligamentoRecord } from '../../tipos';
-import { inconsistencies, normalizarCampo, parseText, recalcular, statusFor } from './campos';
+import { inconsistencies, nibDivergeDoCpf, normalizarCampo, parseText, PENDENCIA_OCR, recalcular, statusFor } from './campos';
 
 const TEXTO = [
   'MUNICÍPIO: CIDADE EXEMPLO',
@@ -257,5 +257,26 @@ describe('NIS só com zeros', () => {
   it('não é um NIS válido, mesmo passando na conta do dígito', () => {
     const campos = { municipio: 'C', cpf: '52998224725', nis: '00000000000', nib: '1', nome: 'N', motivo: 'M' };
     expect(inconsistencies(campos)).toEqual(['NIS com dígito verificador inválido']);
+  });
+});
+
+describe('nibDivergeDoCpf', () => {
+  it('é falso quando o NIB tem os 10 primeiros dígitos do CPF', () => {
+    expect(nibDivergeDoCpf({ cpf: '05629777327', nib: '0562977732' })).toBe(false);
+  });
+
+  it('é verdadeiro quando o NIB não bate com o CPF', () => {
+    expect(nibDivergeDoCpf({ cpf: '04522748345', nib: '0058235124' })).toBe(true);
+  });
+
+  it('é falso com NIB vazio ou CPF curto (campo faltando tem a própria pendência)', () => {
+    expect(nibDivergeDoCpf({ cpf: '04522748345', nib: '' })).toBe(false);
+    expect(nibDivergeDoCpf({ cpf: '045227483', nib: '0452274834' })).toBe(false);
+  });
+});
+
+describe('PENDENCIA_OCR', () => {
+  it('tem o texto combinado', () => {
+    expect(PENDENCIA_OCR).toBe('PDF lido por OCR: conferir os campos');
   });
 });
