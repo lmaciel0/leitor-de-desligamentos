@@ -39,3 +39,6 @@ archives-models/
 # Playwright
 test-results/
 playwright-report/
+
+# OCR: copiado de node_modules por frontend/scripts/copiar-ocr.mjs
+frontend/public/ocr/

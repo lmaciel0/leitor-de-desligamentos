@@ -6,9 +6,13 @@
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
+    "copiar-ocr": "node scripts/copiar-ocr.mjs",
+    "predev": "npm run copiar-ocr",
     "dev": "vite",
     "build": "tsc && vite build",
+    "prebuild": "npm run copiar-ocr",
     "preview": "vite preview",
+    "prepreview": "npm run copiar-ocr",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint .",
@@ -17,10 +21,12 @@
   "dependencies": {
     "@fontsource/bricolage-grotesque": "^5.3.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@tesseract.js-data/por": "1.0.0",
     "lucide-react": "^0.468.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "tesseract.js": "5.1.1",
     "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
