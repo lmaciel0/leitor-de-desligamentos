@@ -106,6 +106,9 @@ function lerRegistro(bruto: unknown, posicao: number): DesligamentoRecord {
   }
 
   const ocr = lerMarcaDeOcr(bruto, invalido, grandeDemais);
+  // Sem a marca, mas com a pendência de OCR (a marca foi apagada à mão): continua registro de OCR,
+  // em REVISAR até ser validado. Marca explícita (true ou false) prevalece.
+  if (ocr.lidoPorOcr === undefined && (inconsistencias as string[]).includes(PENDENCIA_OCR)) ocr.lidoPorOcr = true;
 
   // O status salvo não é confiável (o arquivo pode ter sido editado): recalcula a partir dos
   // campos, como numa edição. As pendências da leitura do PDF não dá para recalcular; ficam.

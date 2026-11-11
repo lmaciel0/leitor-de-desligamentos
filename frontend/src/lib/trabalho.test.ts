@@ -146,6 +146,24 @@ describe('arquivo de trabalho', () => {
     expect(lido.inconsistencias).toContain(PENDENCIA_OCR);
   });
 
+  it('registro sem a marca de OCR, mas com a pendência de OCR (editado à mão), abre como registro de OCR', () => {
+    const conteudo = JSON.parse(gerarTrabalho([registro({ lidoPorOcr: true, inconsistencias: [PENDENCIA_OCR] })], salvoEm));
+    delete conteudo.registros[0].lidoPorOcr;
+    conteudo.registros[0].status = 'OK';
+    const lido = lerTrabalho(JSON.stringify(conteudo)).registros[0];
+    expect(lido.lidoPorOcr).toBe(true);
+    expect(lido.status).toBe('REVISAR');
+    expect(lido.inconsistencias.filter((p) => p === PENDENCIA_OCR)).toHaveLength(1);
+  });
+
+  it('marca de OCR explicitamente falsa prevalece sobre a pendência de OCR', () => {
+    const conteudo = JSON.parse(gerarTrabalho([registro({ lidoPorOcr: false, inconsistencias: [PENDENCIA_OCR] })], salvoEm));
+    const lido = lerTrabalho(JSON.stringify(conteudo)).registros[0];
+    expect(lido.lidoPorOcr).toBe(false);
+    expect(lido.status).toBe('OK');
+    expect(lido.inconsistencias).toEqual([]);
+  });
+
   it('registro de OCR validado abre como OK', () => {
     const lido = lerTrabalho(gerarTrabalho([registro({ lidoPorOcr: true, validado: true })], salvoEm)).registros[0];
     expect(lido.status).toBe('OK');
