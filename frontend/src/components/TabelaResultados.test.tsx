@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { guardarImagem, limparImagens } from '../lib/ocr/imagens';
@@ -95,12 +95,59 @@ describe('TabelaResultados', () => {
     expect(botao).toHaveAttribute('aria-controls', lista.id);
   });
 
-  it('mostra as três colunas de conferência, desmarcadas por padrão e com rótulo por linha', () => {
+  it('os cabeçalhos são Arquivo, Município, CPF, NIS, NIB, Nome, Motivo, Conferências e Status', () => {
     render(<TabelaResultados {...acoes} registros={[registro({})]} />);
-    for (const titulo of ['Município confere', 'Está validado', 'Recebe CMIC']) {
-      expect(screen.getByRole('columnheader', { name: titulo })).toBeInTheDocument();
-      expect(screen.getByRole('checkbox', { name: titulo + ': a.pdf' })).not.toBeChecked();
+    const cabecalhos = screen.getAllByRole('columnheader');
+    expect(cabecalhos.map((th) => th.textContent)).toEqual(['Arquivo', 'Município', 'CPF', 'NIS', 'NIB', 'Nome', 'Motivo', 'Conferências', 'Status']);
+    expect(cabecalhos.every((th) => th.getAttribute('scope') === 'col')).toBe(true);
+  });
+
+  it('mostra as três conferências numa coluna só, desmarcadas, com rótulo curto visível e nome acessível por linha', () => {
+    render(<TabelaResultados {...acoes} registros={[registro({})]} />);
+    const linha = screen.getByLabelText('CPF de a.pdf').closest('tr') as HTMLElement;
+    for (const [nome, curto] of [['Município confere', 'Município'], ['Está validado', 'Validado'], ['Recebe CMIC', 'CMIC']]) {
+      expect(screen.getByRole('checkbox', { name: nome + ': a.pdf' })).not.toBeChecked();
+      expect(within(linha).getByText(curto)).toBeInTheDocument();
     }
+  });
+
+  it('a data de referência aparece na célula do arquivo, com o rótulo só para leitor de tela', () => {
+    render(<TabelaResultados {...acoes} registros={[registro({})]} />);
+    const celula = screen.getByText('a.pdf').closest('td') as HTMLElement;
+    expect(celula).toHaveTextContent('09/10/2026');
+    expect(within(celula).getByText(/Referência/)).toHaveClass('sr-only');
+  });
+
+  it('Nome e Motivo são campos de várias linhas; o wrapper guarda o valor em data-valor', () => {
+    render(<TabelaResultados {...acoes} registros={[registro({})]} />);
+    for (const [campo, valor] of [['Nome', 'ANA'], ['Motivo', 'Mudança']]) {
+      const area = screen.getByLabelText(`${campo} de a.pdf`);
+      expect(area.tagName).toBe('TEXTAREA');
+      expect(area.parentElement).toHaveAttribute('data-valor', valor);
+    }
+    expect(screen.getByLabelText('CPF de a.pdf').tagName).toBe('INPUT');
+    expect(screen.getByLabelText('Município de a.pdf').tagName).toBe('INPUT');
+  });
+
+  it('Enter no nome não cria quebra de linha', async () => {
+    const onEditar = vi.fn();
+    render(<TabelaResultados {...acoes} onEditar={onEditar} registros={[registro({ nome: '' })]} />);
+    await userEvent.type(screen.getByLabelText('Nome de a.pdf'), 'X{Enter}');
+    expect(onEditar).toHaveBeenCalled();
+    for (const [, , valor] of onEditar.mock.calls) expect(valor).not.toContain('\n');
+  });
+
+  it('quebra de linha colada vira espaço', () => {
+    const onEditar = vi.fn();
+    render(<TabelaResultados {...acoes} onEditar={onEditar} registros={[registro({})]} />);
+    fireEvent.change(screen.getByLabelText('Nome de a.pdf'), { target: { value: 'ANA\nSOUZA' } });
+    expect(onEditar).toHaveBeenCalledWith(1, 'nome', 'ANA SOUZA');
+  });
+
+  it('a tabela não tem rolagem própria na vertical', () => {
+    render(<TabelaResultados {...acoes} registros={[registro({})]} />);
+    const wrapper = screen.getByRole('table').parentElement as HTMLElement;
+    expect(wrapper).not.toHaveClass('max-h-[70vh]');
   });
 
   it('marcar uma conferência informa id, campo e novo valor, e reflete o valor recebido', async () => {

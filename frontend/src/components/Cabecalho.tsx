@@ -70,7 +70,7 @@ function SeloLocal() {
 export function Cabecalho({ etapa, processando, escuro, onAlternarTema }: Props) {
   return (
     <header className="border-b border-linha bg-fundo text-forte">
-      <div className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 md:h-14 md:grid-cols-[1fr_auto_1fr] md:px-10">
+      <div className="largura-pagina grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 md:h-14 md:grid-cols-[1fr_auto_1fr]">
         <div className="flex h-14 min-w-0 items-center gap-2.5 md:h-auto">
           <span
             aria-hidden="true"

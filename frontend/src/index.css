@@ -67,7 +67,7 @@
       radial-gradient(60rem 40rem at 100% 0%, rgb(var(--mancha-coral)), transparent 70%),
       radial-gradient(50rem 36rem at 0% 100%, rgb(var(--mancha-navy)), transparent 70%);
   }
-  input { color: inherit; }
+  input, textarea { color: inherit; }
   h1, h2, p { margin: 0; }
   h1 { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; }
   :focus-visible { outline: 3px solid rgb(var(--anel)); outline-offset: 2px; }
@@ -88,11 +88,34 @@
   .botao-primario:disabled,
   .botao-secundario:disabled { @apply cursor-not-allowed opacity-50; }
 
+  /* Largura única do cabeçalho, do corpo e da barra de exportar. */
+  .largura-pagina { @apply mx-auto w-full max-w-[1920px] px-4 md:px-6; }
+
   .campo-celula {
-    @apply w-full min-w-[8rem] rounded border border-transparent bg-transparent px-2 py-1.5 text-sm;
+    @apply w-full rounded border border-transparent bg-transparent px-2 py-1.5 text-sm;
   }
   .campo-celula:hover { @apply border-linha bg-superficie; }
   .campo-celula:focus { @apply border-forte bg-superficie; }
+
+  /* Campo de várias linhas que cresce com o conteúdo, só com CSS: o ::after copia o valor (data-valor),
+     fica invisível e dá a altura da célula da grade; o textarea ocupa a mesma célula. */
+  .campo-texto { @apply grid text-sm; grid-template-columns: minmax(0, 1fr); }
+  .campo-texto::after {
+    @apply rounded border px-2 py-1.5;
+    content: attr(data-valor) ' ';
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    visibility: hidden;
+    border-color: transparent;
+    grid-area: 1 / 1 / 2 / 2;
+  }
+  .campo-texto > textarea {
+    grid-area: 1 / 1 / 2 / 2;
+    resize: none;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    min-height: 0;
+  }
 }
 
 /* Movimento das linhas da tabela. O bloco prefers-reduced-motion em @layer base

@@ -57,6 +57,26 @@ test('processa no navegador, sem requisições externas e sem violações de ace
   expect(problemas).toEqual([]);
 });
 
+test('em 1366 px a tabela cabe inteira e a página não rola na horizontal', async ({ page }, info) => {
+  const { ok, semCpf } = await pdfsDoLote((nome) => info.outputPath(nome));
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/');
+  await processar(page, [ok, semCpf]);
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1366);
+  const wrapper = page.getByRole('table', { name: 'Resultados do processamento' }).locator('xpath=..');
+  const medidas = await wrapper.evaluate((el) => ({ scroll: el.scrollWidth, cliente: el.clientWidth }));
+  expect(medidas.scroll).toBeLessThanOrEqual(medidas.cliente);
+  const status = await page.getByRole('columnheader', { name: 'Status' }).boundingBox();
+  expect(status).not.toBeNull();
+  expect(status!.x + status!.width).toBeLessThanOrEqual(1366);
+
+  // Abaixo de 1366 px a tabela rola dentro do cartão e a página não ganha rolagem horizontal.
+  await page.setViewportSize({ width: 1000, height: 768 });
+  await page.waitForFunction(() => window.innerWidth === 1000);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1000);
+});
+
 test('Esc fecha o menu de filtro e o aviso de reprocessar, devolvendo o foco', async ({ page }, info) => {
   const { ok } = await pdfsDoLote((nome) => info.outputPath(nome));
   await page.goto('/');

@@ -334,7 +334,7 @@ export default function App() {
         onAlternarTema={alternarTema}
       />
 
-      <main className="mx-auto max-w-[1400px] px-4 pb-8 pt-6 md:px-10">
+      <main className="largura-pagina pb-8 pt-6">
         {inicial ? (
           <>
             <BoasVindas onAdicionar={adicionar} onAbrirTrabalho={(arquivo) => void escolherTrabalho(arquivo)} entradaTrabalho={entradaTrabalho} tituloRef={tituloBoasVindas} />

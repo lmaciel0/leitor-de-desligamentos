@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type FocusEvent } from 'react';
 import {
   CAMPOS_CONFERENCIA,
   CAMPOS_EDITAVEIS,
@@ -28,8 +28,18 @@ const TITULOS: Record<CampoEditavel, string> = {
 
 const CAMPOS_NUMERICOS: readonly CampoEditavel[] = ['cpf', 'nis', 'nib'];
 const CAMPOS_LONGOS: readonly CampoEditavel[] = ['nome', 'motivo'];
+const ROTULOS_CURTOS: Record<CampoConferencia, string> = {
+  municipioConfere: 'Município',
+  validado: 'Validado',
+  recebeCmic: 'CMIC',
+};
+
+// Larguras fixas (soma 60rem); Nome e Motivo dividem o que sobra da tabela (mínimo 80rem).
+const LARGURAS_COLUNAS = ['w-36', 'w-36', 'w-[7.5rem]', 'w-[7.5rem]', 'w-28', null, null, 'w-52', 'w-28'] as const;
+const CABECALHOS = ['Arquivo', ...CAMPOS_EDITAVEIS.map((campo) => TITULOS[campo]), 'Conferências', 'Status'];
+
 const ETIQUETA = 'inline-block rounded-full px-2.5 py-0.5 text-xs font-bold';
-const COLUNAS = CAMPOS_EDITAVEIS.length + CAMPOS_CONFERENCIA.length + 3;
+const COLUNAS = CABECALHOS.length;
 
 export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdicao, onEncerrarEdicao }: Props) {
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
@@ -47,13 +57,18 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
   }
 
   return (
-    <div className="max-h-[70vh] overflow-auto rounded-cartao border border-linha bg-superficie shadow-cartao">
-      <table className="w-full border-collapse text-left text-sm">
+    <div className="relative overflow-x-auto rounded-cartao border border-linha bg-superficie shadow-cartao min-[1366px]:overflow-visible">
+      <table className="w-full min-w-[80rem] table-fixed border-collapse text-left text-sm">
         <caption className="sr-only">Resultados do processamento</caption>
+        <colgroup>
+          {LARGURAS_COLUNAS.map((largura, indice) => (
+            <col key={CABECALHOS[indice]} className={largura ?? undefined} />
+          ))}
+        </colgroup>
         <thead>
           <tr className="text-suave">
-            {['Arquivo', 'Referência', ...CAMPOS_EDITAVEIS.map((campo) => TITULOS[campo]), ...CAMPOS_CONFERENCIA.map((campo) => TITULOS_CONFERENCIA[campo]), 'Status'].map((titulo) => (
-              <th key={titulo} scope="col" className="sticky top-0 whitespace-nowrap border-b border-linha bg-superficie px-3 py-3 font-semibold">
+            {CABECALHOS.map((titulo) => (
+              <th key={titulo} scope="col" className="sticky top-0 z-10 whitespace-nowrap border-b border-linha bg-superficie px-3 py-3 font-semibold">
                 {titulo}
               </th>
             ))}
@@ -66,40 +81,70 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
             return (
               <Fragment key={registro.id}>
                 <tr className={`animate-entrar border-b border-linha ${revisar ? 'bg-coral-fundo' : ''}`}>
-                  <td title={registro.arquivo} className={`max-w-[16rem] truncate whitespace-nowrap px-3 py-2 ${revisar ? 'shadow-[inset_3px_0_0_rgb(var(--coral))]' : ''}`}>
-                    {registro.arquivo}
+                  <td className={`px-3 py-2 align-top ${revisar ? 'shadow-[inset_3px_0_0_rgb(var(--coral))]' : ''}`}>
+                    <div title={registro.arquivo} className="truncate">
+                      {registro.arquivo}
+                    </div>
+                    <div className="tabular text-xs text-suave">
+                      <span className="sr-only">Referência: </span>
+                      {registro.referencia}
+                    </div>
                   </td>
-                  <td className="tabular whitespace-nowrap px-3 py-2">{registro.referencia}</td>
-                  {CAMPOS_EDITAVEIS.map((campo) => (
-                    <td key={campo} className="px-1 py-1">
-                      <input
-                        className={`campo-celula ${CAMPOS_NUMERICOS.includes(campo) ? 'tabular' : ''} ${CAMPOS_LONGOS.includes(campo) ? 'min-w-[22rem]' : ''}`}
-                        aria-label={`${TITULOS[campo]} de ${registro.arquivo}`}
-                        value={registro[campo]}
-                        onFocus={() => onIniciarEdicao(registro.id)}
-                        onBlur={(evento) => {
-                          // Passar para outra célula da mesma linha não encerra a edição.
-                          const linha = evento.currentTarget.closest('tr');
-                          if (!linha?.contains(evento.relatedTarget as Node | null)) onEncerrarEdicao();
-                        }}
-                        onChange={(evento) => onEditar(registro.id, campo, evento.target.value)}
-                      />
-                    </td>
-                  ))}
-                  {CAMPOS_CONFERENCIA.map((campo) => (
-                    <td key={campo} className="px-1 py-1 text-center">
-                      <label className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center">
-                        <input
-                          type="checkbox"
-                          className="h-5 w-5 accent-forte"
-                          aria-label={`${TITULOS_CONFERENCIA[campo]}: ${registro.arquivo}`}
-                          checked={registro[campo]}
-                          onChange={(evento) => onConferir(registro.id, campo, evento.target.checked)}
-                        />
-                      </label>
-                    </td>
-                  ))}
-                  <td className="whitespace-nowrap px-3 py-2">
+                  {CAMPOS_EDITAVEIS.map((campo) => {
+                    const propriedades = {
+                      'aria-label': `${TITULOS[campo]} de ${registro.arquivo}`,
+                      value: registro[campo],
+                      onFocus: () => onIniciarEdicao(registro.id),
+                      onBlur: (evento: FocusEvent<HTMLElement>) => {
+                        // Passar para outra célula da mesma linha não encerra a edição.
+                        const linha = evento.currentTarget.closest('tr');
+                        if (!linha?.contains(evento.relatedTarget as Node | null)) onEncerrarEdicao();
+                      },
+                    };
+                    return (
+                      <td key={campo} className="px-1 py-1 align-top">
+                        {CAMPOS_LONGOS.includes(campo) ? (
+                          <div className="campo-texto" data-valor={registro[campo]}>
+                            <textarea
+                              {...propriedades}
+                              rows={1}
+                              className="campo-celula"
+                              onKeyDown={(evento) => {
+                                // O valor salvo nunca tem quebra de linha.
+                                if (evento.key === 'Enter') evento.preventDefault();
+                              }}
+                              onChange={(evento) => onEditar(registro.id, campo, evento.target.value.replace(/\r?\n/g, ' '))}
+                            />
+                          </div>
+                        ) : (
+                          <input
+                            {...propriedades}
+                            className={`campo-celula ${CAMPOS_NUMERICOS.includes(campo) ? 'tabular' : ''}`}
+                            onChange={(evento) => onEditar(registro.id, campo, evento.target.value)}
+                          />
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="px-1 py-1 align-top">
+                    <div className="flex justify-center gap-2">
+                      {CAMPOS_CONFERENCIA.map((campo) => (
+                        <label key={campo} className="flex min-h-[44px] min-w-[44px] cursor-pointer flex-col items-center justify-center">
+                          <span aria-hidden="true" className="text-xs text-suave">
+                            {ROTULOS_CURTOS[campo]}
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="h-5 w-5 accent-forte"
+                            aria-label={`${TITULOS_CONFERENCIA[campo]}: ${registro.arquivo}`}
+                            checked={registro[campo]}
+                            onChange={(evento) => onConferir(registro.id, campo, evento.target.checked)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 align-top">
                     {revisar ? (
                       <button
                         type="button"
