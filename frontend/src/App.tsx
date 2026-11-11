@@ -2,9 +2,9 @@ import { FolderOpen, LoaderCircle, Play, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvisoReprocessar } from './components/AvisoReprocessar';
 import { BarraExportar } from './components/BarraExportar';
-import { BarraTriagem } from './components/BarraTriagem';
 import { Cabecalho } from './components/Cabecalho';
 import { Filtros } from './components/Filtros';
+import { PainelNumeros } from './components/PainelNumeros';
 import { TabelaResultados } from './components/TabelaResultados';
 import { ZonaUpload } from './components/ZonaUpload';
 import { ehPdf, separarDuplicados } from './lib/arquivos';
@@ -13,7 +13,7 @@ import { baixarBlob } from './lib/exportar/baixar';
 import { conferirRegistro, normalizarCampo, recalcular } from './lib/parser/campos';
 import { limparImagens } from './lib/ocr/imagens';
 import { processarLote } from './lib/processar';
-import { marcarRevisao } from './lib/revisao';
+import { contarRevisao, marcarRevisao } from './lib/revisao';
 import { aplicarTema, salvarTema, temaInicial, type Tema } from './lib/tema';
 import { descreverData, gerarTrabalho, lerTrabalho, nomeDoArquivoDeTrabalho } from './lib/trabalho';
 import type { CampoConferencia, CampoEditavel, DesligamentoRecord, Status } from './tipos';
@@ -51,7 +51,7 @@ export default function App() {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [registros, setRegistros] = useState<DesligamentoRecord[]>([]);
   /** Número do lote atual: sobe ao terminar de processar, abrir trabalho e limpar os dados. */
-  const [, setLote] = useState(0);
+  const [lote, setLote] = useState(0);
   /** Vira true ao baixar XLSX/CSV; qualquer edição, novo lote, trabalho aberto ou limpeza volta a false. */
   const [exportado, setExportado] = useState(false);
   const [municipios, setMunicipios] = useState<string[]>([]);
@@ -97,6 +97,7 @@ export default function App() {
 
   const totalOk = registros.filter((registro) => registro.status === 'OK').length;
   const totalRevisar = registros.length - totalOk;
+  const revisao = useMemo(() => contarRevisao(registros), [registros]);
 
   function zerarFiltros() {
     setMunicipios([]);
@@ -340,9 +341,13 @@ export default function App() {
           <p className="mt-10 text-sm text-suave">Escolha um ou mais PDFs e clique em Processar arquivos.</p>
         ) : (
           <section className="mt-8 space-y-4" aria-label="Resultados">
-            <BarraTriagem
+            <PainelNumeros
+              total={registros.length}
               ok={totalOk}
               revisar={totalRevisar}
+              conferidos={revisao.conferidos}
+              totalRevisao={revisao.total}
+              lote={lote}
               statusAtivo={statusAtivo}
               onAlternar={(status) => setStatusAtivo((atual) => (atual === status ? null : status))}
             />
