@@ -17,7 +17,7 @@ Decisões acordadas durante o brainstorming:
 
 - **Sem backend.** Descartado Python, que era a ideia inicial, porque a Vercel limita o corpo das requisições a cerca de 4,5 MB e não oferece Tesseract. Executar no navegador resolve os dois problemas e dá a melhor posição em privacidade.
 - **Sem Supabase.** Sem servidor e sem dado persistido, ele não teria função. Se for necessário login no futuro, entra como camada separada, em outra spec.
-- **Sem OCR nesta versão.** O OCR do Java só rodava quando o PDF não tinha texto, e as regex foram calibradas para texto nativo. PDFs escaneados serão sinalizados como `REVISAR`. Adicionar `tesseract.js` fica para uma versão futura, se aparecerem PDFs escaneados reais.
+- **Sem OCR nesta versão.** O OCR do Java só rodava quando o PDF não tinha texto, e as regex foram calibradas para texto nativo. PDFs escaneados serão sinalizados como `REVISAR`. Adicionar `tesseract.js` fica para uma versão futura, se aparecerem PDFs escaneados reais. Superada em 2026-11-11: ver 2026-11-11-ocr-pdf-escaneado-design.md
 - **Frontend mantido:** React 18, TypeScript, Vite e Tailwind. O visual é redesenhado (seção 8).
 
 Fora de escopo: login, persistência de dados, OCR, validação de dígitos verificadores do CPF (o Java valida só o tamanho de 11 dígitos; a paridade é mantida), qualquer chamada de rede com dados do usuário.
