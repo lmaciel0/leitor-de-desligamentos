@@ -29,6 +29,11 @@ export default {
       },
       borderRadius: { cartao: '12px' },
       boxShadow: { cartao: '0 6px 20px rgb(20 33 61 / .08)' },
+      // Só CSS por linha; nada roda para sempre: o pulso para depois de 3 iterações.
+      animation: {
+        entrar: 'entrar 300ms var(--curva) 1 backwards',
+        'pulso-coral': 'pulso-coral 1.2s ease-out 3',
+      },
       fontFamily: {
         titulo: ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],
         sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],

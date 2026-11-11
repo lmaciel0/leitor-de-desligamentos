@@ -94,3 +94,14 @@
   .campo-celula:hover { @apply border-linha bg-superficie; }
   .campo-celula:focus { @apply border-forte bg-superficie; }
 }
+
+/* Movimento das linhas da tabela. O bloco prefers-reduced-motion em @layer base
+   (animation: none !important em *) desliga estas animações também. */
+@keyframes entrar {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulso-coral {
+  0% { box-shadow: 0 0 0 0 rgb(var(--coral) / 0.55); }
+  70%, 100% { box-shadow: 0 0 0 7px rgb(var(--coral) / 0); }
+}

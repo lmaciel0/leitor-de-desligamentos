@@ -28,6 +28,7 @@ const TITULOS: Record<CampoEditavel, string> = {
 
 const CAMPOS_NUMERICOS: readonly CampoEditavel[] = ['cpf', 'nis', 'nib'];
 const CAMPOS_LONGOS: readonly CampoEditavel[] = ['nome', 'motivo'];
+const ETIQUETA = 'inline-block rounded-full px-2.5 py-0.5 text-xs font-bold';
 const COLUNAS = CAMPOS_EDITAVEIS.length + CAMPOS_CONFERENCIA.length + 3;
 
 export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdicao, onEncerrarEdicao }: Props) {
@@ -46,7 +47,7 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
   }
 
   return (
-    <div className="max-h-[70vh] overflow-auto rounded-md border border-linha bg-superficie">
+    <div className="max-h-[70vh] overflow-auto rounded-cartao border border-linha bg-superficie shadow-cartao">
       <table className="w-full border-collapse text-left text-sm">
         <caption className="sr-only">Resultados do processamento</caption>
         <thead>
@@ -64,8 +65,8 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
             const aberto = expandidos.has(registro.id);
             return (
               <Fragment key={registro.id}>
-                <tr className={`border-b border-linha ${revisar ? 'bg-coral-claro' : ''}`}>
-                  <td title={registro.arquivo} className={`max-w-[16rem] truncate whitespace-nowrap px-3 py-2 ${revisar ? 'shadow-[inset_4px_0_0_rgb(var(--coral))]' : ''}`}>
+                <tr className={`animate-entrar border-b border-linha ${revisar ? 'bg-coral-fundo' : ''}`}>
+                  <td title={registro.arquivo} className={`max-w-[16rem] truncate whitespace-nowrap px-3 py-2 ${revisar ? 'shadow-[inset_3px_0_0_rgb(var(--coral))]' : ''}`}>
                     {registro.arquivo}
                   </td>
                   <td className="tabular whitespace-nowrap px-3 py-2">{registro.referencia}</td>
@@ -98,27 +99,31 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
                       </label>
                     </td>
                   ))}
-                  <td className="whitespace-nowrap px-3 py-2 font-semibold">
+                  <td className="whitespace-nowrap px-3 py-2">
                     {revisar ? (
                       <button
                         type="button"
                         aria-expanded={aberto}
                         aria-controls={`pendencias-${registro.id}`}
                         onClick={() => alternar(registro.id)}
-                        className="rounded px-2 py-1 text-forte underline decoration-forte/40 underline-offset-4"
+                        className="cursor-pointer rounded-full"
                       >
-                        REVISAR
-                        <span className="ml-2 font-normal text-suave">
-                          {registro.inconsistencias.length} {registro.inconsistencias.length === 1 ? 'pendência' : 'pendências'}
+                        {/* A etiqueta é só visual; o nome acessível do botão continua REVISAR + contagem de pendências. */}
+                        <span aria-hidden="true" className={`${ETIQUETA} animate-pulso-coral bg-coral-claro text-coral-texto`}>
+                          Revisar · {registro.inconsistencias.length}
+                        </span>
+                        <span className="sr-only">
+                          REVISAR
+                          <span>{registro.inconsistencias.length} {registro.inconsistencias.length === 1 ? 'pendência' : 'pendências'}</span>
                         </span>
                       </button>
                     ) : (
-                      <span className="text-suave">OK</span>
+                      <span className={`${ETIQUETA} bg-ok-fundo text-forte`}>OK</span>
                     )}
                   </td>
                 </tr>
                 {registro.lidoPorOcr && (
-                  <tr className={`border-b border-linha ${revisar ? 'bg-coral-claro' : ''}`}>
+                  <tr className={`border-b border-linha ${revisar ? 'bg-coral-fundo' : ''}`}>
                     <td colSpan={COLUNAS} className="px-3 py-3">
                       {/* Sticky: a tabela rola na horizontal e o painel precisa ficar à vista. */}
                       <div className="sticky left-0 w-[min(100%,calc(100vw-4rem))]">
@@ -129,7 +134,7 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
                   </tr>
                 )}
                 {revisar && aberto && (
-                  <tr className="border-b border-linha bg-coral-claro">
+                  <tr className="border-b border-linha bg-coral-fundo">
                     <td colSpan={COLUNAS} className="px-3 pb-3 pl-6">
                       <ul id={`pendencias-${registro.id}`} aria-label={`Pendências de ${registro.arquivo}`} className="list-disc pl-5 text-sm">
                         {registro.inconsistencias.map((pendencia, indice) => (
