@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react';
-import { useId } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { Etapa } from '../lib/etapa';
 import { BarraEtapas } from './BarraEtapas';
 import { BotaoTema } from './BotaoTema';
@@ -13,25 +13,55 @@ interface Props {
 
 const AVISO_LOCAL = 'Seus PDFs não saem deste computador.';
 
-/** Selo "Local": o balão aparece ao passar o mouse ou ao focar, e o texto também é a descrição acessível do botão. */
+/**
+ * Selo "Local": o balão aparece com o mouse ou o foco e o texto também é a descrição acessível do botão.
+ * WCAG 1.4.13: Esc o fecha sem mexer no foco, o ponteiro pode ir até o balão sem ele sumir, e sair e voltar o reabre.
+ */
 function SeloLocal() {
   const idAviso = useId();
+  const [mouse, setMouse] = useState(false);
+  const [foco, setFoco] = useState(false);
+  const [dispensado, setDispensado] = useState(false);
+  const aberto = (mouse || foco) && !dispensado;
+
+  /** Só quando nem o mouse nem o foco estão mais no selo é que o Esc deixa de valer e o balão pode reabrir. */
+  function atualizar(novoMouse: boolean, novoFoco: boolean) {
+    setMouse(novoMouse);
+    setFoco(novoFoco);
+    if (!novoMouse && !novoFoco) setDispensado(false);
+  }
+
+  useEffect(() => {
+    if (!aberto) return;
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.key === 'Escape') setDispensado(true);
+    };
+    document.addEventListener('keydown', aoTeclar);
+    return () => document.removeEventListener('keydown', aoTeclar);
+  }, [aberto]);
+
   return (
-    <div className="group relative">
+    <div className="relative" onMouseEnter={() => atualizar(true, foco)} onMouseLeave={() => atualizar(false, foco)}>
       <button
         type="button"
         aria-describedby={idAviso}
+        onFocus={() => atualizar(mouse, true)}
+        onBlur={() => atualizar(mouse, false)}
         className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-linha bg-superficie px-3 text-xs font-semibold text-suave"
       >
         <Lock size={13} aria-hidden="true" />
         <span className="sr-only md:not-sr-only">Local</span>
       </button>
+      {/* O espaço até o botão é padding (não margem), para o ponteiro poder atravessá-lo sem fechar o balão. */}
       <span
         id={idAviso}
         role="tooltip"
-        className="pointer-events-none invisible absolute right-0 top-full z-20 mt-2 w-max max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-linha bg-superficie px-3 py-2 text-xs font-medium text-forte opacity-0 shadow-cartao transition-opacity duration-[var(--duracao-curta)] group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100"
+        data-aberto={aberto}
+        className={`absolute right-0 top-full z-20 w-max max-w-[min(18rem,calc(100vw-2rem))] pt-2 transition-opacity duration-[var(--duracao-curta)] ${
+          aberto ? 'visible opacity-100' : 'invisible opacity-0'
+        }`}
       >
-        {AVISO_LOCAL}
+        <span className="block rounded-lg border border-linha bg-superficie px-3 py-2 text-xs font-medium text-forte shadow-cartao">{AVISO_LOCAL}</span>
       </span>
     </div>
   );
