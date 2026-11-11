@@ -8,8 +8,8 @@ interface Props {
 }
 
 const ESTILO: Record<Status, string> = {
-  OK: 'bg-ok text-white',
-  REVISAR: 'bg-honey text-sobre-honey',
+  OK: 'bg-ok-fundo text-forte',
+  REVISAR: 'bg-coral text-sobre-coral',
 };
 
 export function BarraTriagem({ ok, revisar, statusAtivo, onAlternar }: Props) {

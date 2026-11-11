@@ -12,7 +12,7 @@ export function BotaoTema({ escuro, onAlternar }: Props) {
       type="button"
       aria-pressed={escuro}
       onClick={onAlternar}
-      className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-white/70 px-4 text-sm font-semibold text-white hover:bg-white/10"
+      className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-forte/50 px-4 text-sm font-semibold text-forte hover:bg-superficie"
     >
       {escuro ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
       Modo escuro

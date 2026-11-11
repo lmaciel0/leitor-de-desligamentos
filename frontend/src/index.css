@@ -5,46 +5,72 @@
 @layer base {
   /* Papéis de cor (canais RGB, para aceitar opacidade). O tema escuro troca os valores. */
   :root {
-    --fundo: 243 245 248;
+    --fundo: 244 237 224;
     --superficie: 255 255 255;
-    --texto: 22 35 58;
-    --texto-forte: 33 53 85;
-    --suave: 91 107 130;
-    --denim: 79 112 156;
-    --denim-claro: 228 235 243;
-    --honey-claro: 246 239 201;
-    --tijolo: 163 58 46;
-    --primario: 33 53 85;
-    --primario-hover: 22 35 58;
-    --sobre-primario: 255 255 255;
-    --ok: 79 112 156;
-    --anel: 33 53 85;
-    --acento: 33 53 85;
+    --superficie-alt: 251 247 240;
+    --linha: 226 216 198;
+    --texto: 27 36 56;
+    --forte: 20 33 61;
+    --suave: 94 102 118;
+    --apagado: 154 160 172;
+    --coral: 255 107 91;
+    --sobre-coral: 20 33 61;
+    --coral-texto: 178 58 44;
+    --coral-claro: 255 228 223;
+    --coral-fundo: 255 243 240;
+    --destaque: 20 33 61;
+    --sobre-destaque: 255 255 255;
+    --ok-fundo: 227 231 240;
+    --anel: 20 33 61;
+
+    --mancha-coral: 255 107 91 / 0.2;
+    --mancha-navy: 20 33 61 / 0.1;
+
+    --duracao-curta: 150ms;
+    --duracao-media: 600ms;
+    --curva: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .dark {
-    --fundo: 14 22 36;
-    --superficie: 22 35 58;
-    --texto: 230 236 245;
-    --texto-forte: 214 226 243;
-    --suave: 160 175 196;
-    --denim: 126 163 214;
-    --denim-claro: 30 48 79;
-    --honey-claro: 58 52 24;
-    --tijolo: 255 138 125;
-    --primario: 126 163 214;
-    --primario-hover: 160 190 230;
-    --sobre-primario: 14 22 36;
-    --ok: 70 108 160;
-    --anel: 14 22 36;
-    --acento: 126 163 214;
+    --fundo: 13 18 32;
+    --superficie: 22 29 48;
+    --superficie-alt: 22 29 48;
+    --linha: 37 46 69;
+    --texto: 244 237 224;
+    --forte: 244 237 224;
+    --suave: 155 163 181;
+    --apagado: 95 104 128;
+    --coral: 255 122 107;
+    --sobre-coral: 20 33 61;
+    --coral-texto: 255 179 169;
+    --coral-claro: 58 32 38;
+    /* rgb(255 122 107 / .10) e rgb(244 237 224 / .12) sobre a superfície #161D30 */
+    --coral-fundo: 45 38 54;
+    --destaque: 20 33 61;
+    --sobre-destaque: 244 237 224;
+    --ok-fundo: 49 54 69;
+    --anel: 244 237 224;
+
+    --mancha-coral: 255 122 107 / 0.16;
+    --mancha-navy: 20 33 61 / 0;
   }
 
   html { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
   body { margin: 0; background: rgb(var(--fundo)); color: rgb(var(--texto)); }
+  /* Duas manchas difusas fixas atrás do conteúdo: coral no canto superior direito, navy no inferior esquerdo. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 40rem at 100% 0%, rgb(var(--mancha-coral)), transparent 70%),
+      radial-gradient(50rem 36rem at 0% 100%, rgb(var(--mancha-navy)), transparent 70%);
+  }
   input { color: inherit; }
   h1, h2, p { margin: 0; }
   h1 { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; }
-  :focus-visible { outline: 3px solid rgb(var(--denim)); outline-offset: 2px; }
+  :focus-visible { outline: 3px solid rgb(var(--anel)); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
@@ -55,16 +81,16 @@
 
   .botao-primario,
   .botao-secundario {
-    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold;
   }
-  .botao-primario { @apply bg-primario text-sobre-primario hover:bg-primario-hover; }
-  .botao-secundario { @apply border border-denim bg-superficie text-forte hover:bg-denim-claro; }
+  .botao-primario { @apply bg-coral text-sobre-coral hover:brightness-[.92]; }
+  .botao-secundario { @apply border border-linha bg-superficie text-forte hover:bg-superficie-alt; }
   .botao-primario:disabled,
   .botao-secundario:disabled { @apply cursor-not-allowed opacity-50; }
 
   .campo-celula {
     @apply w-full min-w-[8rem] rounded border border-transparent bg-transparent px-2 py-1.5 text-sm;
   }
-  .campo-celula:hover { @apply border-denim/40 bg-superficie; }
-  .campo-celula:focus { @apply border-denim bg-superficie; }
+  .campo-celula:hover { @apply border-linha bg-superficie; }
+  .campo-celula:focus { @apply border-forte bg-superficie; }
 }

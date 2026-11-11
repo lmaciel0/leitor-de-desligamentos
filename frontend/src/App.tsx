@@ -244,13 +244,13 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-papel">
-      <header className="bg-eclipse text-white">
+    <div className="min-h-screen">
+      <header className="border-b border-linha bg-fundo text-forte">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-6 md:flex-row md:items-end md:justify-between md:px-10">
           <h1 className="text-3xl md:text-4xl">Leitor de desligamentos</h1>
           <div className="flex flex-col gap-3 md:items-end">
             <BotaoTema escuro={tema === 'escuro'} onAlternar={alternarTema} />
-            <p className="text-sm text-white/80">Seus PDFs não saem deste computador.</p>
+            <p className="text-sm text-suave">Seus PDFs não saem deste computador.</p>
           </div>
         </div>
       </header>
@@ -277,7 +277,7 @@ export default function App() {
             Limpar dados
           </button>
           <div className="flex flex-col gap-3 sm:ml-auto sm:flex-row">
-            <label className="botao-secundario cursor-pointer focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-denim">
+            <label className="botao-secundario cursor-pointer focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-anel">
               <FolderOpen size={16} aria-hidden="true" />
               Abrir trabalho
               <input
@@ -316,7 +316,7 @@ export default function App() {
           {anuncio}
         </p>
         {erro && (
-          <p role="alert" className="mt-3 text-sm font-medium text-tijolo">
+          <p role="alert" className="mt-3 text-sm font-medium text-coral-texto">
             {erro}
           </p>
         )}

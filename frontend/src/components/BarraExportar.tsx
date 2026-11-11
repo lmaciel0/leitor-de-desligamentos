@@ -22,7 +22,7 @@ export function BarraExportar({ registros, onErro }: Props) {
   }
 
   return (
-    <section aria-label="Exportar resultados" className="sticky bottom-0 border-t border-denim/30 bg-papel/95 py-3 backdrop-blur">
+    <section aria-label="Exportar resultados" className="sticky bottom-0 border-t border-linha bg-fundo/95 py-3 backdrop-blur">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 sm:flex-row md:px-10">
         <button type="button" className="botao-primario" onClick={() => exportar(() => gerarXlsx(registros), 'desligamentos.xlsx')}>
           <Download size={16} aria-hidden="true" />

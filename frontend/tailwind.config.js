@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 
-// Cores que mudam entre os temas vêm de variáveis CSS (definidas em src/index.css),
-// com o canal alfa liberado para classes como border-denim/30.
+// Todas as cores vêm de variáveis CSS (definidas em src/index.css),
+// com o canal alfa liberado para classes como border-linha/60.
 const papel = (variavel) => `rgb(var(--${variavel}) / <alpha-value>)`;
 
 export default {
@@ -9,27 +9,26 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Fixas nos dois temas
-        eclipse: '#213555',
-        honey: '#E5D283',
-        'sobre-honey': '#213555',
-        // Mudam com o tema
-        papel: papel('fundo'),
+        fundo: papel('fundo'),
         superficie: papel('superficie'),
-        tinta: papel('texto'),
-        forte: papel('texto-forte'),
+        'superficie-alt': papel('superficie-alt'),
+        linha: papel('linha'),
+        texto: papel('texto'),
+        forte: papel('forte'),
         suave: papel('suave'),
-        denim: papel('denim'),
-        'denim-claro': papel('denim-claro'),
-        'honey-claro': papel('honey-claro'),
-        tijolo: papel('tijolo'),
-        primario: papel('primario'),
-        'primario-hover': papel('primario-hover'),
-        'sobre-primario': papel('sobre-primario'),
-        ok: papel('ok'),
+        apagado: papel('apagado'),
+        coral: papel('coral'),
+        'sobre-coral': papel('sobre-coral'),
+        'coral-texto': papel('coral-texto'),
+        'coral-claro': papel('coral-claro'),
+        'coral-fundo': papel('coral-fundo'),
+        destaque: papel('destaque'),
+        'sobre-destaque': papel('sobre-destaque'),
+        'ok-fundo': papel('ok-fundo'),
         anel: papel('anel'),
-        acento: papel('acento'),
       },
+      borderRadius: { cartao: '12px' },
+      boxShadow: { cartao: '0 6px 20px rgb(20 33 61 / .08)' },
       fontFamily: {
         titulo: ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],
         sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],

@@ -25,8 +25,8 @@ export function ZonaUpload({ arquivos, onAdicionar, onRemover }: Props) {
           setArrastando(false);
           onAdicionar(Array.from(evento.dataTransfer.files));
         }}
-        className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed px-5 py-6 text-forte focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-denim ${
-          arrastando ? 'border-forte bg-denim-claro' : 'border-denim bg-superficie'
+        className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed px-5 py-6 text-forte focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-anel ${
+          arrastando ? 'border-forte bg-coral-fundo' : 'border-apagado bg-superficie'
         }`}
       >
         <Upload size={22} aria-hidden="true" />
@@ -48,7 +48,7 @@ export function ZonaUpload({ arquivos, onAdicionar, onRemover }: Props) {
           {arquivos.map((arquivo, indice) => (
             <li
               key={`${arquivo.name}-${indice}`}
-              className="flex max-w-full items-center gap-2 rounded-full bg-denim-claro px-3 py-1.5 text-sm text-forte"
+              className="flex max-w-full items-center gap-2 rounded-full bg-fundo px-3 py-1.5 text-sm text-forte"
             >
               <FileText size={14} aria-hidden="true" />
               <span className="truncate">{arquivo.name}</span>
