@@ -10,6 +10,10 @@ const NOME = 'MARIA ESCANEADA SILVA';
 test.setTimeout(120_000);
 
 async function semViolacoes(page: Page) {
+  // O fade das linhas (animação `entrar`) mistura as cores e o axe mediria contraste falso: espera terminar.
+  await page.waitForFunction(() =>
+    document.getAnimations().every((a) => !(a instanceof CSSAnimation && a.animationName === 'entrar') || a.playState !== 'running'),
+  );
   const resultado = await new AxeBuilder({ page }).withTags(REGRAS_WCAG).analyze();
   expect(resultado.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 }

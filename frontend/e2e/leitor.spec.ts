@@ -6,6 +6,10 @@ import { criarPdf, linhasDoFormulario } from './pdfs';
 const REGRAS_WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
 async function semViolacoes(page: Page) {
+  // O fade das linhas (animação `entrar`) mistura as cores e o axe mediria contraste falso: espera terminar.
+  await page.waitForFunction(() =>
+    document.getAnimations().every((a) => !(a instanceof CSSAnimation && a.animationName === 'entrar') || a.playState !== 'running'),
+  );
   const resultado = await new AxeBuilder({ page }).withTags(REGRAS_WCAG).analyze();
   expect(resultado.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 }
