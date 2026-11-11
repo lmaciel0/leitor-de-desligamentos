@@ -173,6 +173,30 @@ describe('TabelaResultados', () => {
     expect(screen.queryByRole('img', { name: 'Página do PDF b.pdf' })).not.toBeInTheDocument();
   });
 
+  it('registro de OCR em REVISAR abre as pendências dentro do painel, ao lado da página, sem linha nova', async () => {
+    guardarImagem(1, 'data:image/jpeg;base64,AAAA');
+    const revisar = registro({ lidoPorOcr: true, status: 'REVISAR', inconsistencias: ['CPF inválido', 'NIS vazio'] });
+    render(<TabelaResultados {...acoes} registros={[revisar]} />);
+    const linhas = () => screen.getAllByRole('row').filter((linha) => linha.parentElement?.tagName === 'TBODY');
+    expect(linhas()).toHaveLength(2);
+    expect(screen.queryByRole('list', { name: 'Pendências de a.pdf' })).not.toBeInTheDocument();
+    const botao = screen.getByRole('button', { name: /REVISAR/ });
+    await userEvent.click(botao);
+    const lista = screen.getByRole('list', { name: 'Pendências de a.pdf' });
+    expect(lista.closest('tr')).toBe(screen.getByRole('img', { name: 'Página do PDF a.pdf' }).closest('tr'));
+    expect(linhas()).toHaveLength(2);
+    expect(botao).toHaveAttribute('aria-controls', lista.id);
+  });
+
+  it('registro sem OCR em REVISAR continua abrindo as pendências numa linha própria', async () => {
+    const revisar = registro({ status: 'REVISAR', inconsistencias: ['CPF inválido'] });
+    render(<TabelaResultados {...acoes} registros={[revisar]} />);
+    await userEvent.click(screen.getByRole('button', { name: /REVISAR/ }));
+    const linhas = screen.getAllByRole('row').filter((linha) => linha.parentElement?.tagName === 'TBODY');
+    expect(linhas).toHaveLength(2);
+    expect(screen.getByRole('list', { name: 'Pendências de a.pdf' })).toBeInTheDocument();
+  });
+
   it('registro de OCR sem imagem em memória mostra o aviso de indisponível', () => {
     render(<TabelaResultados {...acoes} registros={[registro({ lidoPorOcr: true })]} />);
     expect(screen.getByText(/Imagem da página não está disponível/)).toBeInTheDocument();

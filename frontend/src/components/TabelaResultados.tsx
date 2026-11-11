@@ -41,6 +41,16 @@ const CABECALHOS = ['Arquivo', ...CAMPOS_EDITAVEIS.map((campo) => TITULOS[campo]
 const ETIQUETA = 'inline-block rounded-full px-2.5 py-0.5 text-xs font-bold';
 const COLUNAS = CABECALHOS.length;
 
+function ListaDePendencias({ registro }: { registro: DesligamentoRecord }) {
+  return (
+    <ul id={`pendencias-${registro.id}`} aria-label={`Pendências de ${registro.arquivo}`} className="list-disc pl-5 text-sm">
+      {registro.inconsistencias.map((pendencia, indice) => (
+        <li key={`${indice}-${pendencia}`}>{pendencia}</li>
+      ))}
+    </ul>
+  );
+}
+
 export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdicao, onEncerrarEdicao }: Props) {
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
 
@@ -167,27 +177,26 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
                     )}
                   </td>
                 </tr>
-                {registro.lidoPorOcr && (
+                {registro.lidoPorOcr ? (
                   <tr className={`border-b border-linha ${revisar ? 'bg-coral-fundo' : ''}`}>
                     <td colSpan={COLUNAS} className="px-3 py-3">
                       {/* Sticky: a tabela rola na horizontal e o painel precisa ficar à vista. */}
                       <div className="sticky left-0 w-[min(100%,calc(100vw-4rem))]">
-                        <p className="mb-2 text-sm font-semibold">Página lida por OCR: {registro.arquivo}</p>
-                        <ImagemDaPagina idDoRegistro={registro.id} arquivo={registro.arquivo} />
+                        <ImagemDaPagina idDoRegistro={registro.id} arquivo={registro.arquivo}>
+                          {revisar && aberto && <ListaDePendencias registro={registro} />}
+                        </ImagemDaPagina>
                       </div>
                     </td>
                   </tr>
-                )}
-                {revisar && aberto && (
-                  <tr className="border-b border-linha bg-coral-fundo">
-                    <td colSpan={COLUNAS} className="px-3 pb-3 pl-6">
-                      <ul id={`pendencias-${registro.id}`} aria-label={`Pendências de ${registro.arquivo}`} className="list-disc pl-5 text-sm">
-                        {registro.inconsistencias.map((pendencia, indice) => (
-                          <li key={`${indice}-${pendencia}`}>{pendencia}</li>
-                        ))}
-                      </ul>
-                    </td>
-                  </tr>
+                ) : (
+                  revisar &&
+                  aberto && (
+                    <tr className="border-b border-linha bg-coral-fundo">
+                      <td colSpan={COLUNAS} className="px-3 pb-3 pl-6">
+                        <ListaDePendencias registro={registro} />
+                      </td>
+                    </tr>
+                  )
                 )}
               </Fragment>
             );
