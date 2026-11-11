@@ -26,3 +26,18 @@ export async function criarPdf(caminho: string, linhas: string[]): Promise<strin
   writeFileSync(caminho, await documento.save());
   return caminho;
 }
+
+/** Resolução em que o PNG do formulário é posto na página (o tamanho da página sai dela). */
+const DPI_DO_ESCANEADO = 200;
+
+/** PDF de uma página só com a imagem do formulário, sem camada de texto: o caso do PDF escaneado. */
+export async function criarPdfEscaneado(caminho: string, png: Buffer): Promise<string> {
+  const documento = await PDFDocument.create();
+  const imagem = await documento.embedPng(png);
+  const escala = 72 / DPI_DO_ESCANEADO;
+  const largura = imagem.width * escala;
+  const altura = imagem.height * escala;
+  documento.addPage([largura, altura]).drawImage(imagem, { x: 0, y: 0, width: largura, height: altura });
+  writeFileSync(caminho, await documento.save());
+  return caminho;
+}

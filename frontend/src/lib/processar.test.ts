@@ -1,6 +1,19 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { criarPdf, type TextoNaPagina } from '../testes/criarPdf';
-import { formatarReferencia, MENSAGEM_PDF_ESCANEADO, processarArquivo, processarLote } from './processar';
+
+vi.mock('./ocr/lerPorOcr', () => ({ lerPorOcr: vi.fn(), geracaoDoOcr: vi.fn(() => 0), reiniciarOcr: vi.fn(async () => {}) }));
+
+import { PENDENCIA_OCR } from './parser/campos';
+import { LimiteExcedido } from './pdf/extrairTexto';
+import { limparImagens, obterImagem } from './ocr/imagens';
+import { lerPorOcr, reiniciarOcr } from './ocr/lerPorOcr';
+import {
+  formatarReferencia,
+  MENSAGEM_OCR_VAZIO,
+  orcamentoOcrMs,
+  processarArquivo,
+  processarLote,
+} from './processar';
 
 const FORMULARIO: TextoNaPagina[] = [
   { texto: 'MUNICÍPIO: CIDADE EXEMPLO', x: 50, y: 800 },
@@ -55,11 +68,6 @@ describe('processarArquivo', () => {
     const registro = await processarArquivo(1, await pdfFile('sem-cpf.pdf', [semCpf]), '09/10/2026');
     expect(registro.status).toBe('REVISAR');
     expect(registro.inconsistencias).toEqual(['CPF']);
-  });
-
-  it('sinaliza PDF sem texto como escaneado', async () => {
-    const registro = await processarArquivo(1, await pdfFile('imagem.pdf', [[]]), '09/10/2026');
-    expect(registro).toMatchObject({ status: 'REVISAR', cpf: '', inconsistencias: [MENSAGEM_PDF_ESCANEADO] });
   });
 
   it('converte falha do pdf.js em "erro de processamento" (arquivo de 0 bytes)', async () => {
@@ -143,5 +151,132 @@ describe('processarArquivo com limites', () => {
       ['grande.pdf', 'REVISAR', ['PDF maior que 20 MB']],
       ['ok.pdf', 'OK', []],
     ]);
+  });
+});
+
+describe('processarArquivo com PDF escaneado (OCR)', () => {
+  const TEXTO_DO_FORMULARIO = FORMULARIO.map((linha) => linha.texto).join('\n');
+  const escaneado = () => pdfFile('imagem.pdf', [[]]);
+
+  afterEach(() => {
+    vi.mocked(lerPorOcr).mockReset();
+    vi.mocked(reiniciarOcr).mockClear();
+    vi.useRealTimers();
+    limparImagens();
+  });
+
+  it('lê o formulário por OCR: campos preenchidos, REVISAR com a pendência de OCR e a imagem guardada', async () => {
+    vi.mocked(lerPorOcr).mockResolvedValue({ texto: TEXTO_DO_FORMULARIO, imagem: 'data:image/jpeg;base64,AAA' });
+    const registro = await processarArquivo(7, await escaneado(), '09/10/2026');
+    expect(registro).toMatchObject({
+      id: 7,
+      arquivo: 'imagem.pdf',
+      municipio: 'CIDADE EXEMPLO',
+      cpf: '00123456797',
+      nis: '12345678919',
+      nib: '0012345678',
+      nome: 'MARIA DA SILVA',
+      motivo: 'Mudança para outro Estado',
+      validado: false,
+      lidoPorOcr: true,
+      status: 'REVISAR',
+    });
+    expect(registro.inconsistencias[0]).toBe(PENDENCIA_OCR);
+    expect(obterImagem(7)).toBe('data:image/jpeg;base64,AAA');
+  });
+
+  it('OCR sem texto vira registro vazio com a mensagem própria, sem a marca de OCR', async () => {
+    vi.mocked(lerPorOcr).mockResolvedValue({ texto: ' \n ', imagem: 'data:image/jpeg;base64,AAA' });
+    const registro = await processarArquivo(1, await escaneado(), '09/10/2026');
+    expect(registro).toMatchObject({ status: 'REVISAR', cpf: '', inconsistencias: [MENSAGEM_OCR_VAZIO] });
+    expect(registro.lidoPorOcr).toBeUndefined();
+    expect(obterImagem(1)).toBeUndefined();
+  });
+
+  it('PDF em branco no meio do lote não impede os seguintes', async () => {
+    vi.mocked(lerPorOcr).mockResolvedValue({ texto: '', imagem: null });
+    const registros = await processarLote([await escaneado(), await pdfFile('ok.pdf', [FORMULARIO])], new Date(2026, 9, 9));
+    expect(registros.map((r) => [r.arquivo, r.status, r.inconsistencias])).toEqual([
+      ['imagem.pdf', 'REVISAR', [MENSAGEM_OCR_VAZIO]],
+      ['ok.pdf', 'OK', []],
+    ]);
+  });
+
+  it('PDF com texto não passa pelo OCR', async () => {
+    const registro = await processarArquivo(1, await pdfFile('ok.pdf', [FORMULARIO]), '09/10/2026');
+    expect(registro.status).toBe('OK');
+    expect(lerPorOcr).not.toHaveBeenCalled();
+  });
+
+  it('limite excedido no OCR vira registro vazio com a mensagem e reinicia o motor', async () => {
+    vi.mocked(lerPorOcr).mockRejectedValue(new LimiteExcedido('PDF com mais de 10 páginas'));
+    const registro = await processarArquivo(1, await escaneado(), '09/10/2026');
+    expect(registro).toMatchObject({ status: 'REVISAR', inconsistencias: ['PDF com mais de 10 páginas'] });
+    expect(reiniciarOcr).toHaveBeenCalledTimes(1);
+  });
+
+  it('outra falha do OCR vira "erro de processamento"', async () => {
+    vi.mocked(lerPorOcr).mockRejectedValue(new Error('falha'));
+    const registro = await processarArquivo(1, await escaneado(), '09/10/2026');
+    expect(registro.inconsistencias).toEqual(['erro de processamento: falha']);
+  });
+
+  it('o relógio do OCR começa em aoComecar, com o orçamento pelas páginas, e estourar reinicia o motor', async () => {
+    vi.mocked(lerPorOcr).mockImplementation(async (_pdf, opcoes) => {
+      vi.useFakeTimers();
+      opcoes.aoComecar?.(1);
+      const interrompida = new Promise<never>((_, rejeitar) =>
+        opcoes.sinal.addEventListener('abort', () => rejeitar(opcoes.sinal.reason), { once: true }),
+      );
+      vi.advanceTimersByTime(orcamentoOcrMs(1) - 1);
+      expect(opcoes.sinal.aborted).toBe(false);
+      vi.advanceTimersByTime(1);
+      vi.useRealTimers();
+      return interrompida;
+    });
+    const registros = await processarLote([await escaneado(), await pdfFile('ok.pdf', [FORMULARIO])], new Date(2026, 9, 9));
+    expect(registros[0].inconsistencias).toEqual(['PDF demorou mais de 32 s para ser lido']);
+    expect(reiniciarOcr).toHaveBeenCalledTimes(1);
+    expect(registros[1].status).toBe('OK');
+  });
+
+  it('cancelar o lote durante o OCR termina o arquivo sem travar e reinicia o motor', async () => {
+    const controlador = new AbortController();
+    vi.mocked(lerPorOcr).mockImplementation(() => {
+      controlador.abort();
+      return new Promise(() => {});
+    });
+    const registro = await processarArquivo(1, await escaneado(), '09/10/2026', {}, { sinalDoLote: controlador.signal });
+    expect(registro.status).toBe('REVISAR');
+    expect(reiniciarOcr).toHaveBeenCalledTimes(1);
+  });
+
+  it('lote já cancelado antes de o OCR começar: não lê nem reinicia nada (o motor pode ser do lote seguinte)', async () => {
+    const controlador = new AbortController();
+    controlador.abort();
+    const registro = await processarArquivo(1, await escaneado(), '09/10/2026', {}, { sinalDoLote: controlador.signal });
+    expect(registro).toMatchObject({ status: 'REVISAR', inconsistencias: ['PDF não lido: o lote foi cancelado'] });
+    expect(lerPorOcr).not.toHaveBeenCalled();
+    expect(reiniciarOcr).not.toHaveBeenCalled();
+  });
+
+  it('avisa cada página lida por OCR, também pelo lote', async () => {
+    vi.mocked(lerPorOcr).mockImplementation(async (_pdf, opcoes) => {
+      opcoes.aoComecar?.(2);
+      opcoes.aoIniciarPagina?.(1, 2);
+      opcoes.aoIniciarPagina?.(2, 2);
+      return { texto: '', imagem: null };
+    });
+    const onEtapa = vi.fn();
+    await processarLote([await escaneado()], new Date(), { onEtapa });
+    expect(onEtapa.mock.calls).toEqual([
+      ['Carregando o OCR…'],
+      ['Lendo imagem.pdf por OCR (página 1 de 2)'],
+      ['Lendo imagem.pdf por OCR (página 2 de 2)'],
+    ]);
+  });
+
+  it('orçamento do OCR: 20 s mais 12 s por página', () => {
+    expect(orcamentoOcrMs(10)).toBe(140_000);
   });
 });

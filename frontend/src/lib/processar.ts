@@ -1,9 +1,31 @@
 import type { DesligamentoRecord } from '../tipos';
-import { carregarPdfjs, reiniciarWorker } from './pdf/carregarPdfjs';
+import { carregarPdfjs, reiniciarWorker, workerEmUso } from './pdf/carregarPdfjs';
 import { extrairTexto, LimiteExcedido } from './pdf/extrairTexto';
-import { inconsistencies, parseText } from './parser/campos';
+import { avisosDeLeitura } from './ocr/avisosDeLeitura';
+import { guardarImagem } from './ocr/imagens';
+import { inconsistencies, parseText, recalcular } from './parser/campos';
 
-export const MENSAGEM_PDF_ESCANEADO = 'PDF sem texto selecionável (escaneado)';
+type ModuloOcr = typeof import('./ocr/lerPorOcr');
+
+export const MENSAGEM_OCR_VAZIO = 'PDF sem texto reconhecido pelo OCR';
+const MENSAGEM_LOTE_CANCELADO = 'PDF não lido: o lote foi cancelado';
+
+/**
+ * Orçamento de tempo de um arquivo lido por OCR, proporcional às páginas (o OCR leva ~6 s por
+ * página medidos; o orçamento dá folga para máquina lenta). Conta só depois de o modelo carregar.
+ */
+export const OCR_BASE_MS = 20_000;
+export const OCR_POR_PAGINA_MS = 12_000;
+
+export function orcamentoOcrMs(paginas: number): number {
+  return OCR_BASE_MS + OCR_POR_PAGINA_MS * paginas;
+}
+
+/**
+ * Tempo máximo para abrir o PDF e carregar o OCR (worker, núcleo e modelo `por`, ~10 MB na primeira vez).
+ * Sem isso, um arquivo do OCR faltando no deploy prende o lote: o tesseract.js não avisa todas as falhas.
+ */
+export const OCR_CARGA_MS = 120_000;
 
 /** Limites por arquivo: um PDF enorme ou malformado não pode travar a aba nem o lote. */
 export interface LimitesDoArquivo {
@@ -40,8 +62,15 @@ function registroVazio(id: number, arquivo: string, referencia: string, problema
   };
 }
 
+function mensagemDeTempo(ms: number): string {
+  return `PDF demorou mais de ${Math.round(ms / 1000)} s para ser lido`;
+}
+
+function mensagemDeCarga(ms: number): string {
+  return `PDF não lido: o OCR não carregou em ${Math.round(ms / 1000)} s`;
+}
+
 function registroDoTexto(id: number, arquivo: string, referencia: string, texto: string): DesligamentoRecord {
-  if (!texto.trim()) return registroVazio(id, arquivo, referencia, MENSAGEM_PDF_ESCANEADO);
   const campos = parseText(texto);
   const problemas = inconsistencies(campos);
   return {
@@ -55,12 +84,109 @@ function registroDoTexto(id: number, arquivo: string, referencia: string, texto:
   };
 }
 
-/** Troca o worker (que pode estar preso num PDF); se não der agora, o próximo arquivo tenta carregar de novo. */
-async function trocarWorker(): Promise<void> {
+/**
+ * Troca o worker que o arquivo usou (pode estar preso num PDF), se ainda for o atual;
+ * se não der agora, o próximo arquivo tenta carregar de novo.
+ */
+async function trocarWorker(aposentado: Worker | null): Promise<void> {
   try {
-    await reiniciarWorker();
+    await reiniciarWorker(aposentado);
   } catch {
     // Sem worker novo agora; carregarPdfjs tenta de novo no próximo arquivo.
+  }
+}
+
+/** Descarta o motor de OCR da geração que o arquivo usou (pode estar preso numa página); o próximo PDF escaneado cria outro. */
+async function trocarMotorOcr(ocr: ModuloOcr, geracao: number): Promise<void> {
+  try {
+    await ocr.reiniciarOcr(geracao);
+  } catch {
+    // Sem motor novo agora; o próximo PDF escaneado tenta criar.
+  }
+}
+
+function quandoAbortar(sinal: AbortSignal): Promise<never> {
+  return new Promise((_, rejeitar) => {
+    if (sinal.aborted) rejeitar(sinal.reason);
+    else sinal.addEventListener('abort', () => rejeitar(sinal.reason), { once: true });
+  });
+}
+
+export interface ExtrasDoArquivo {
+  /** Cancelamento do lote: interrompe o OCR em andamento. */
+  sinalDoLote?: AbortSignal;
+  /** Etapa em andamento, para o operador saber que um arquivo está em OCR (é lento). */
+  onEtapa?: (mensagem: string) => void;
+}
+
+/**
+ * PDF sem texto (escaneado): lê por OCR. Dois relógios: um para abrir o PDF e carregar o modelo
+ * (`OCR_CARGA_MS`) e, com o modelo carregado, o orçamento pelas páginas. Estourar um deles ou
+ * cancelar o lote durante o OCR descarta o motor de OCR e o worker do pdf.js que este arquivo usou.
+ * Lote cancelado antes de o OCR começar não descarta nada: o lote seguinte pode já estar usando os dois.
+ */
+async function registroDoOcr(
+  arquivo: File,
+  id: number,
+  nome: string,
+  referencia: string,
+  maxPaginas: number,
+  { sinalDoLote, onEtapa }: ExtrasDoArquivo,
+): Promise<DesligamentoRecord> {
+  const ocr = await import('./ocr/lerPorOcr');
+  const relogio = new AbortController();
+  let prazoDaCarga: ReturnType<typeof setTimeout> | undefined;
+  let prazo: ReturnType<typeof setTimeout> | undefined;
+  /** O que este arquivo usa: só isso é descartado se ele estourar o tempo ou for cancelado. */
+  let emUso: { worker: Worker | null; geracao: number } | null = null;
+  const cancelarPeloLote = () => relogio.abort(new LimiteExcedido(MENSAGEM_LOTE_CANCELADO));
+  if (sinalDoLote?.aborted) cancelarPeloLote();
+  else sinalDoLote?.addEventListener('abort', cancelarPeloLote, { once: true });
+  try {
+    // Lido de novo: o pdf.js pode ter tomado para o worker o buffer usado na extração de texto.
+    const dados = await arquivo.arrayBuffer();
+    // Cancelado antes de o OCR começar: termina sem ler nem descartar nada.
+    if (relogio.signal.aborted) throw relogio.signal.reason;
+    onEtapa?.('Carregando o OCR…');
+    emUso = { worker: workerEmUso(), geracao: ocr.geracaoDoOcr() };
+    prazoDaCarga = setTimeout(() => relogio.abort(new LimiteExcedido(mensagemDeCarga(OCR_CARGA_MS))), OCR_CARGA_MS);
+    const leitura = ocr.lerPorOcr(dados, {
+      maxPaginas,
+      sinal: relogio.signal,
+      aoComecar: (total) => {
+        clearTimeout(prazoDaCarga);
+        const orcamento = orcamentoOcrMs(total);
+        prazo = setTimeout(() => relogio.abort(new LimiteExcedido(mensagemDeTempo(orcamento))), orcamento);
+      },
+      aoIniciarPagina: (pagina, total) => onEtapa?.(`Lendo ${nome} por OCR (página ${pagina} de ${total})`),
+    });
+    // O motor pode estar preso e nunca responder: o relógio e o lote não esperam por ele.
+    const { texto, imagem } = await Promise.race([leitura, quandoAbortar(relogio.signal)]);
+    if (!texto.trim()) return registroVazio(id, nome, referencia, MENSAGEM_OCR_VAZIO);
+    const registro = recalcular({
+      id,
+      arquivo: nome,
+      referencia,
+      ...parseText(texto),
+      ...SEM_CONFERENCIA,
+      lidoPorOcr: true,
+      avisosOcr: avisosDeLeitura(texto),
+      status: 'REVISAR',
+      inconsistencias: [],
+    });
+    if (imagem) guardarImagem(id, imagem);
+    return registro;
+  } catch (erro) {
+    if (emUso && relogio.signal.aborted) {
+      await Promise.all([trocarMotorOcr(ocr, emUso.geracao), trocarWorker(emUso.worker)]);
+    } else if (emUso && erro instanceof LimiteExcedido) {
+      await trocarMotorOcr(ocr, emUso.geracao);
+    }
+    throw erro;
+  } finally {
+    clearTimeout(prazoDaCarga);
+    clearTimeout(prazo);
+    sinalDoLote?.removeEventListener('abort', cancelarPeloLote);
   }
 }
 
@@ -69,6 +195,7 @@ export async function processarArquivo(
   arquivo: File,
   referencia: string,
   limites: Partial<LimitesDoArquivo> = {},
+  extras: ExtrasDoArquivo = {},
 ): Promise<DesligamentoRecord> {
   const { maxMegabytes, maxPaginas, tempoMaximoMs } = { ...LIMITES_PADRAO, ...limites };
   const nome = arquivo.name?.trim() ? arquivo.name : 'arquivo.pdf';
@@ -78,21 +205,24 @@ export async function processarArquivo(
 
   const relogio = new AbortController();
   let prazo: ReturnType<typeof setTimeout> | undefined;
+  /** O worker do pdf.js que este arquivo usa: só ele é trocado se o tempo estourar. */
+  let worker: Worker | null = null;
   try {
     const dados = await arquivo.arrayBuffer();
     // Carregar o pdf.js (só na primeira vez) não conta no tempo do arquivo: em máquina lenta,
     // isso faria o primeiro PDF "demorar demais" sem motivo.
     await carregarPdfjs();
-    prazo = setTimeout(
-      () => relogio.abort(new LimiteExcedido(`PDF demorou mais de ${Math.round(tempoMaximoMs / 1000)} s para ser lido`)),
-      tempoMaximoMs,
-    );
+    worker = workerEmUso();
+    prazo = setTimeout(() => relogio.abort(new LimiteExcedido(mensagemDeTempo(tempoMaximoMs))), tempoMaximoMs);
     const texto = await extrairTexto(dados, { maxPaginas, signal: relogio.signal });
-    return registroDoTexto(id, nome, referencia, texto);
+    if (texto.trim()) return registroDoTexto(id, nome, referencia, texto);
+    // Sem texto: PDF escaneado. O relógio da leitura de texto para aqui; o OCR tem o seu.
+    clearTimeout(prazo);
+    return await registroDoOcr(arquivo, id, nome, referencia, maxPaginas, extras);
   } catch (erro) {
     if (erro instanceof LimiteExcedido) {
       // Se o tempo estourou, o worker pode estar preso nesse PDF: o próximo arquivo usa um novo.
-      if (relogio.signal.aborted) await trocarWorker();
+      if (relogio.signal.aborted) await trocarWorker(worker);
       return registroVazio(id, nome, referencia, erro.message);
     }
     const mensagem = erro instanceof Error ? erro.message : String(erro);
@@ -105,6 +235,8 @@ export async function processarArquivo(
 export interface OpcoesDoLote {
   onProgresso?: (feitos: number, total: number) => void;
   signal?: AbortSignal;
+  /** Etapa em andamento dentro de um arquivo (ex.: página lida por OCR). */
+  onEtapa?: (mensagem: string) => void;
 }
 
 export async function processarLote(
@@ -116,7 +248,9 @@ export async function processarLote(
   const registros: DesligamentoRecord[] = [];
   for (const [indice, arquivo] of arquivos.entries()) {
     if (opcoes.signal?.aborted) break;
-    registros.push(await processarArquivo(indice + 1, arquivo, referencia));
+    registros.push(
+      await processarArquivo(indice + 1, arquivo, referencia, {}, { sinalDoLote: opcoes.signal, onEtapa: opcoes.onEtapa }),
+    );
     opcoes.onProgresso?.(registros.length, arquivos.length);
   }
   return registros;

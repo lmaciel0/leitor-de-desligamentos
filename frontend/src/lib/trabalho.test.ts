@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DesligamentoRecord } from '../tipos';
+import { PENDENCIA_OCR } from './parser/campos';
 import { gerarTrabalho, lerTrabalho, nomeDoArquivoDeTrabalho, TrabalhoInvalido } from './trabalho';
 
 function registro(parcial: Partial<DesligamentoRecord> = {}): DesligamentoRecord {
@@ -35,7 +36,7 @@ describe('arquivo de trabalho', () => {
   it('identifica o formato e a versão no arquivo', () => {
     const conteudo = JSON.parse(gerarTrabalho([registro()], salvoEm));
     expect(conteudo.formato).toBe('leitor-de-desligamentos/trabalho');
-    expect(conteudo.versao).toBe(1);
+    expect(conteudo.versao).toBe(2);
   });
 
   it('renumera os ids ao abrir, para não haver repetidos', () => {
@@ -106,6 +107,80 @@ describe('arquivo de trabalho', () => {
   it('recusa trabalho com registros demais', () => {
     const muitos = Array.from({ length: 5001 }, (_, i) => registro({ id: i + 1 }));
     expect(() => lerTrabalho(gerarTrabalho(muitos, salvoEm))).toThrow('mais de 5000 registros');
+  });
+
+  it('abre um trabalho da versão 1, sem a marca de OCR', () => {
+    const conteudo = { ...JSON.parse(gerarTrabalho([registro()], salvoEm)), versao: 1 };
+    const lido = lerTrabalho(JSON.stringify(conteudo)).registros[0];
+    expect(lido.lidoPorOcr).toBeUndefined();
+    expect(lido.avisosOcr).toBeUndefined();
+    expect(lido.status).toBe('OK');
+  });
+
+  it('recusa a versão 3', () => {
+    const futuro = { ...JSON.parse(gerarTrabalho([], salvoEm)), versao: 3 };
+    expect(() => lerTrabalho(JSON.stringify(futuro))).toThrow('versão 3');
+  });
+
+  it('round-trip de registro de OCR: marca, avisos e a pendência de OCR uma única vez', () => {
+    const ocr = registro({
+      lidoPorOcr: true,
+      avisosOcr: ['Mais de um motivo de desligamento marcado'],
+      status: 'REVISAR',
+      inconsistencias: [PENDENCIA_OCR, 'Mais de um motivo de desligamento marcado'],
+    });
+    const lido = lerTrabalho(gerarTrabalho([ocr], salvoEm)).registros[0];
+    expect(lido.lidoPorOcr).toBe(true);
+    expect(lido.avisosOcr).toEqual(['Mais de um motivo de desligamento marcado']);
+    expect(lido.status).toBe('REVISAR');
+    expect(lido.inconsistencias.filter((p) => p === PENDENCIA_OCR)).toHaveLength(1);
+    expect(lido.inconsistencias).toContain('Mais de um motivo de desligamento marcado');
+  });
+
+  it('registro de OCR editado à mão para OK sem validar volta como REVISAR', () => {
+    const conteudo = JSON.parse(gerarTrabalho([registro({ lidoPorOcr: true })], salvoEm));
+    conteudo.registros[0].status = 'OK';
+    conteudo.registros[0].inconsistencias = [];
+    const lido = lerTrabalho(JSON.stringify(conteudo)).registros[0];
+    expect(lido.status).toBe('REVISAR');
+    expect(lido.inconsistencias).toContain(PENDENCIA_OCR);
+  });
+
+  it('registro sem a marca de OCR, mas com a pendência de OCR (editado à mão), abre como registro de OCR', () => {
+    const conteudo = JSON.parse(gerarTrabalho([registro({ lidoPorOcr: true, inconsistencias: [PENDENCIA_OCR] })], salvoEm));
+    delete conteudo.registros[0].lidoPorOcr;
+    conteudo.registros[0].status = 'OK';
+    const lido = lerTrabalho(JSON.stringify(conteudo)).registros[0];
+    expect(lido.lidoPorOcr).toBe(true);
+    expect(lido.status).toBe('REVISAR');
+    expect(lido.inconsistencias.filter((p) => p === PENDENCIA_OCR)).toHaveLength(1);
+  });
+
+  it('marca de OCR explicitamente falsa prevalece sobre a pendência de OCR', () => {
+    const conteudo = JSON.parse(gerarTrabalho([registro({ lidoPorOcr: false, inconsistencias: [PENDENCIA_OCR] })], salvoEm));
+    const lido = lerTrabalho(JSON.stringify(conteudo)).registros[0];
+    expect(lido.lidoPorOcr).toBe(false);
+    expect(lido.status).toBe('OK');
+    expect(lido.inconsistencias).toEqual([]);
+  });
+
+  it('registro de OCR validado abre como OK', () => {
+    const lido = lerTrabalho(gerarTrabalho([registro({ lidoPorOcr: true, validado: true })], salvoEm)).registros[0];
+    expect(lido.status).toBe('OK');
+    expect(lido.inconsistencias).toEqual([]);
+  });
+
+  it('recusa lidoPorOcr e avisosOcr inválidos, citando o campo', () => {
+    const conteudo = JSON.parse(gerarTrabalho([registro({ lidoPorOcr: true })], salvoEm));
+    conteudo.registros[0].lidoPorOcr = 'sim';
+    expect(() => lerTrabalho(JSON.stringify(conteudo))).toThrow('campo "lidoPorOcr" inválido');
+    conteudo.registros[0].lidoPorOcr = true;
+    conteudo.registros[0].avisosOcr = 'aviso';
+    expect(() => lerTrabalho(JSON.stringify(conteudo))).toThrow('campo "avisosOcr" inválido');
+    conteudo.registros[0].avisosOcr = [1];
+    expect(() => lerTrabalho(JSON.stringify(conteudo))).toThrow('campo "avisosOcr" inválido');
+    conteudo.registros[0].avisosOcr = Array.from({ length: 51 }, (_, i) => `aviso ${i}`);
+    expect(() => lerTrabalho(JSON.stringify(conteudo))).toThrow('campo "avisosOcr" grande demais');
   });
 
   it('nomeia o arquivo com a data', () => {

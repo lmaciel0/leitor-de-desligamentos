@@ -9,6 +9,7 @@ vi.mock('./lib/exportar/baixar', () => ({ baixarBlob: vi.fn() }));
 
 import App from './App';
 import { baixarBlob } from './lib/exportar/baixar';
+import { guardarImagem, obterImagem } from './lib/ocr/imagens';
 import { processarLote } from './lib/processar';
 import { gerarTrabalho } from './lib/trabalho';
 
@@ -251,6 +252,50 @@ describe('App', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Não foi possível abrir o trabalho: Este arquivo não é um trabalho do Leitor de desligamentos.',
     );
+  });
+
+  it('mostra a etapa informada pelo lote junto do progresso e a apaga quando o lote termina', async () => {
+    let concluir: (registros: DesligamentoRecord[]) => void = () => {};
+    vi.mocked(processarLote).mockImplementation((_arquivos, _agora, opcoes) => {
+      opcoes?.onEtapa?.('Lendo a.pdf por OCR (página 1 de 1)');
+      return new Promise<DesligamentoRecord[]>((resolver) => { concluir = resolver; });
+    });
+    render(<App />);
+    await enviarEProcessar('a.pdf');
+    expect(await screen.findByText('Lendo a.pdf por OCR (página 1 de 1)')).toBeInTheDocument();
+    concluir([registro(1)]);
+    await waitFor(() => expect(screen.queryByText('Lendo a.pdf por OCR (página 1 de 1)')).not.toBeInTheDocument());
+  });
+
+  it('apaga a etapa também quando o lote falha', async () => {
+    vi.mocked(processarLote).mockImplementation((_arquivos, _agora, opcoes) => {
+      opcoes?.onEtapa?.('Lendo a.pdf por OCR (página 1 de 1)');
+      return Promise.reject(new Error('falhou'));
+    });
+    render(<App />);
+    await enviarEProcessar('a.pdf');
+    expect(await screen.findByRole('alert')).toHaveTextContent('falhou');
+    expect(screen.queryByText('Lendo a.pdf por OCR (página 1 de 1)')).not.toBeInTheDocument();
+  });
+
+  it('iniciar o processamento e abrir um trabalho descartam as imagens guardadas', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    guardarImagem(1, 'data:image/jpeg;base64,AAAA');
+    await enviarEProcessar('1.pdf');
+    await screen.findByLabelText('Nome de 1.pdf');
+    expect(obterImagem(1)).toBeUndefined();
+    guardarImagem(1, 'data:image/jpeg;base64,AAAA');
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1)]));
+    await userEvent.click(await screen.findByRole('button', { name: 'Abrir trabalho' }));
+    expect(obterImagem(1)).toBeUndefined();
+  });
+
+  it('Limpar dados descarta as imagens guardadas', async () => {
+    render(<App />);
+    guardarImagem(1, 'data:image/jpeg;base64,AAAA');
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    expect(obterImagem(1)).toBeUndefined();
   });
 
   it('Limpar dados zera tudo e descarta o resultado de um lote em andamento', async () => {

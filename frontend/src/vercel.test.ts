@@ -51,3 +51,40 @@ describe('vercel.json', () => {
     expect(csp()).toMatch(/worker-src 'self'/);
   });
 });
+
+describe('vercel.json: regra do OCR', () => {
+  const arquivo = fileURLToPath(new URL('../vercel.json', import.meta.url));
+  const regras = () => (JSON.parse(readFileSync(arquivo, 'utf-8')) as ConfigVercel).headers;
+  const cspDe = (source: string): string => {
+    const regra = regras().find((r) => r.source === source);
+    if (!regra) throw new Error(`vercel.json sem regra ${source}`);
+    const valor = regra.headers.find((h) => h.key === 'Content-Security-Policy');
+    if (!valor) throw new Error(`regra ${source} sem CSP`);
+    return valor.value;
+  };
+  const cspGlobal = () => cspDe('/((?!ocr/).*)');
+  const cspOcr = () => cspDe('/ocr/(.*)');
+
+  it("o CSP de /ocr/ é o global, exceto por script-src 'self' 'wasm-unsafe-eval'", () => {
+    expect(cspOcr()).toBe(cspGlobal().replace("script-src 'self';", "script-src 'self' 'wasm-unsafe-eval';"));
+    expect(cspOcr()).not.toBe(cspGlobal());
+  });
+
+  it('wasm-unsafe-eval fica de fora da regra global', () => {
+    expect(cspGlobal()).not.toContain('wasm-unsafe-eval');
+    expect(cspGlobal()).toMatch(/script-src 'self'(;|$)/);
+  });
+
+  it('a regra do OCR mantém os demais cabeçalhos da global', () => {
+    const outros = (source: string) => regras().find((r) => r.source === source)?.headers.filter((h) => h.key !== 'Content-Security-Policy');
+    expect(outros('/ocr/(.*)')).toEqual(outros('/((?!ocr/).*)'));
+    expect(outros('/ocr/(.*)')).toHaveLength(4);
+  });
+
+  it("o CSP de /ocr/ segue sem blob:, sem hosts externos, com connect-src e worker-src 'self'", () => {
+    expect(cspOcr()).not.toContain('blob:');
+    expect(cspOcr()).not.toMatch(/https?:\/\//);
+    expect(cspOcr()).toMatch(/connect-src 'self'(;|$)/);
+    expect(cspOcr()).toMatch(/worker-src 'self'(;|$)/);
+  });
+});

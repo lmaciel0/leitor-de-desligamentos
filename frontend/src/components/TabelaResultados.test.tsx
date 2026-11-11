@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { guardarImagem, limparImagens } from '../lib/ocr/imagens';
 import type { DesligamentoRecord } from '../tipos';
 import { TabelaResultados } from './TabelaResultados';
 
@@ -28,6 +29,8 @@ function registro(parcial: Partial<DesligamentoRecord>): DesligamentoRecord {
 const acoes = { onEditar: () => {}, onConferir: () => {}, onIniciarEdicao: () => {}, onEncerrarEdicao: () => {} };
 
 describe('TabelaResultados', () => {
+  beforeEach(() => limparImagens());
+
   it('editar uma célula informa id, campo e valor', async () => {
     const onEditar = vi.fn();
     render(<TabelaResultados {...acoes} onEditar={onEditar} registros={[registro({ nome: '' })]} />);
@@ -107,6 +110,24 @@ describe('TabelaResultados', () => {
     rerender(<TabelaResultados {...acoes} onConferir={onConferir} registros={[registro({ validado: true })]} />);
     expect(screen.getByRole('checkbox', { name: 'Está validado: a.pdf' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Recebe CMIC: a.pdf' })).not.toBeChecked();
+  });
+
+  it('registro lido por OCR mostra a página original; registro sem a marca não mostra', () => {
+    guardarImagem(1, 'data:image/jpeg;base64,AAAA');
+    guardarImagem(2, 'data:image/jpeg;base64,BBBB');
+    render(
+      <TabelaResultados
+        {...acoes}
+        registros={[registro({ lidoPorOcr: true }), registro({ id: 2, arquivo: 'b.pdf' })]}
+      />,
+    );
+    expect(screen.getByRole('img', { name: 'Página do PDF a.pdf' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Página do PDF b.pdf' })).not.toBeInTheDocument();
+  });
+
+  it('registro de OCR sem imagem em memória mostra o aviso de indisponível', () => {
+    render(<TabelaResultados {...acoes} registros={[registro({ lidoPorOcr: true })]} />);
+    expect(screen.getByText(/Imagem da página não está disponível/)).toBeInTheDocument();
   });
 
   it('explica quando nenhum registro corresponde aos filtros', () => {
