@@ -10,6 +10,7 @@ import { ZonaUpload } from './components/ZonaUpload';
 import { ehPdf, separarDuplicados } from './lib/arquivos';
 import { baixarBlob } from './lib/exportar/baixar';
 import { conferirRegistro, normalizarCampo, recalcular } from './lib/parser/campos';
+import { limparImagens } from './lib/ocr/imagens';
 import { processarLote } from './lib/processar';
 import { aplicarTema, salvarTema, temaInicial, type Tema } from './lib/tema';
 import { descreverData, gerarTrabalho, lerTrabalho, nomeDoArquivoDeTrabalho } from './lib/trabalho';
@@ -56,6 +57,7 @@ export default function App() {
   const [trabalhoPendente, setTrabalhoPendente] = useState<TrabalhoLido | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0 });
+  const [etapa, setEtapa] = useState('');
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [anuncio, setAnuncio] = useState('');
@@ -133,12 +135,18 @@ export default function App() {
     setErro('');
     setAviso('');
     setProgresso({ feitos: 0, total: arquivos.length });
+    setEtapa('');
+    // Os ids de registro recomeçam a cada lote: imagens de um lote anterior não podem sobrar.
+    limparImagens();
     setAnuncio(`Processando ${arquivos.length} ${plural(arquivos.length, 'arquivo', 'arquivos')}.`);
     try {
       const resultado = await processarLote(arquivos, new Date(), {
         signal: controlador.signal,
         onProgresso: (feitos, total) => {
           if (!controlador.signal.aborted) setProgresso({ feitos, total });
+        },
+        onEtapa: (mensagem) => {
+          if (!controlador.signal.aborted) setEtapa(mensagem);
         },
       });
       if (controlador.signal.aborted) return;
@@ -155,6 +163,7 @@ export default function App() {
       if (controladorRef.current === controlador) {
         controladorRef.current = null;
         setCarregando(false);
+        setEtapa('');
       }
     }
   }
@@ -186,6 +195,8 @@ export default function App() {
     controladorRef.current?.abort();
     controladorRef.current = null;
     setCarregando(false);
+    setEtapa('');
+    limparImagens();
     setTrabalhoPendente(null);
     setArquivos([]);
     setRegistros(lidos);
@@ -205,6 +216,8 @@ export default function App() {
     controladorRef.current?.abort();
     controladorRef.current = null;
     setCarregando(false);
+    setEtapa('');
+    limparImagens();
     setConfirmando(false);
     setTrabalhoPendente(null);
     setArquivos([]);
@@ -285,6 +298,7 @@ export default function App() {
             </button>
           </div>
         </div>
+        {carregando && etapa && <p className="mt-3 text-sm text-suave">{etapa}</p>}
         {confirmando && (
           <AvisoReprocessar linhasEditadas={editadas.size} onConfirmar={() => void processar()} onCancelar={cancelarReprocesso} />
         )}

@@ -7,6 +7,7 @@ import {
   type CampoEditavel,
   type DesligamentoRecord,
 } from '../tipos';
+import { ImagemDaPagina } from './ImagemDaPagina';
 
 interface Props {
   registros: DesligamentoRecord[];
@@ -116,6 +117,17 @@ export function TabelaResultados({ registros, onEditar, onConferir, onIniciarEdi
                     )}
                   </td>
                 </tr>
+                {registro.lidoPorOcr && (
+                  <tr className={`border-b border-denim/15 ${revisar ? 'bg-honey-claro' : ''}`}>
+                    <td colSpan={COLUNAS} className="px-3 py-3">
+                      {/* Sticky: a tabela rola na horizontal e o painel precisa ficar à vista. */}
+                      <div className="sticky left-0 w-[min(100%,calc(100vw-4rem))]">
+                        <p className="mb-2 text-sm font-semibold">Página lida por OCR: {registro.arquivo}</p>
+                        <ImagemDaPagina idDoRegistro={registro.id} arquivo={registro.arquivo} />
+                      </div>
+                    </td>
+                  </tr>
+                )}
                 {revisar && aberto && (
                   <tr className="border-b border-denim/15 bg-honey-claro">
                     <td colSpan={COLUNAS} className="px-3 pb-3 pl-6">
