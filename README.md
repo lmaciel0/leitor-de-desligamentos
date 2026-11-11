@@ -24,7 +24,7 @@ Extrai, revisa e exporta dados de formulários PDF de desligamento do Cartão Ma
 - Processar de novo, com resultados na tela, pede confirmação: o reprocessamento substitui os resultados e descarta as edições manuais.
 - Modo escuro: botão no cabeçalho. Na primeira visita segue o tema do sistema; depois lembra a sua escolha neste navegador (só o tema fica guardado).
 - Acessível por teclado e leitor de tela (WCAG 2.1 AA; verificado com axe-core nos principais estados).
-- PDFs escaneados (sem texto selecionável) são lidos por OCR no seu computador. Eles ficam `REVISAR` até você marcar "Está validado", mesmo depois de editar as células, e a página original aparece na revisão para você conferir os campos. O OCR leva alguns segundos por página.
+- PDFs escaneados (sem texto selecionável) são lidos por OCR no seu computador. Eles ficam `REVISAR` até você marcar "Está validado", mesmo depois de editar as células, e a página original aparece ao lado dos campos e das pendências, para você conferir; "Ampliar" a abre em tela cheia. O OCR leva alguns segundos por página.
 - Funciona em navegadores mais antigos (testado simulando o Chrome 109, o último do Windows 7/8). Em navegadores antigos demais, mostra um aviso pedindo para atualizar, em vez de uma tela branca.
 
 ## Privacidade

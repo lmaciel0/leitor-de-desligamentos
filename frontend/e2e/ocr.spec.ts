@@ -131,7 +131,23 @@ test('tela com uma linha de OCR e a imagem da página aberta não tem violaçõe
   await processar(page, [escaneado]);
   await expect(page.getByRole('img', { name: 'Página do PDF escaneado.pdf' })).toBeVisible();
   await linhaDe(page, 'escaneado.pdf').getByRole('button', { name: /REVISAR/ }).click();
-  await page.getByRole('button', { name: 'Ampliar' }).click();
-  await expect(page.getByRole('button', { name: 'Reduzir' })).toBeVisible();
+  const ampliar = page.getByRole('button', { name: 'Ampliar' });
+  const dialogo = page.getByRole('dialog', { name: 'Página do PDF escaneado.pdf, em tela cheia' });
+  await ampliar.click();
+  await expect(dialogo).toBeVisible();
   await semViolacoes(page);
+
+  await page.keyboard.press('Escape');
+  await expect(dialogo).toBeHidden();
+  await expect(ampliar).toBeFocused();
+
+  await page.getByRole('button', { name: 'Modo escuro' }).click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await ampliar.click();
+  await expect(dialogo).toBeVisible();
+  await semViolacoes(page);
+
+  await page.keyboard.press('Escape');
+  await expect(dialogo).toBeHidden();
+  await expect(ampliar).toBeFocused();
 });

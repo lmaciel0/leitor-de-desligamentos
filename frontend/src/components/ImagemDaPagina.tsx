@@ -1,34 +1,48 @@
-import { Maximize2, Minimize2 } from 'lucide-react';
-import { useState } from 'react';
+import { Maximize2 } from 'lucide-react';
+import { useRef, useState, type ReactNode } from 'react';
 import { obterImagem } from '../lib/ocr/imagens';
+import { PaginaAmpliada } from './PaginaAmpliada';
 
 interface Props {
   idDoRegistro: number;
   arquivo: string;
+  /** Vai na coluna do título e do botão, abaixo deles (ex.: a lista de pendências). */
+  children?: ReactNode;
 }
 
-/** Página do PDF lida por OCR, para o operador comparar com os campos. A imagem vive só em memória (data URL). */
-export function ImagemDaPagina({ idDoRegistro, arquivo }: Props) {
+/** Painel da página lida por OCR: a imagem à esquerda; título, "Ampliar" e os filhos à direita. A imagem vive só em memória (data URL). */
+export function ImagemDaPagina({ idDoRegistro, arquivo, children }: Props) {
   const [ampliada, setAmpliada] = useState(false);
+  const botao = useRef<HTMLButtonElement>(null);
   const imagem = obterImagem(idDoRegistro);
 
-  if (!imagem) {
-    return (
-      <p className="text-sm text-suave">Imagem da página não está disponível. Carregue o PDF de novo para conferir.</p>
-    );
+  function fechar() {
+    setAmpliada(false);
+    botao.current?.focus();
   }
 
   return (
-    <div className="flex flex-col items-start gap-2">
-      <button type="button" aria-pressed={ampliada} onClick={() => setAmpliada((atual) => !atual)} className="botao-secundario">
-        {ampliada ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}
-        {ampliada ? 'Reduzir' : 'Ampliar'}
-      </button>
-      <img
-        src={imagem}
-        alt={`Página do PDF ${arquivo}`}
-        className={`rounded border border-linha bg-white ${ampliada ? 'max-w-[min(100%,64rem)]' : 'max-h-56 max-w-full'}`}
-      />
+    <div className="grid gap-6 md:grid-cols-[minmax(0,auto)_minmax(16rem,1fr)]">
+      {imagem && (
+        <img
+          src={imagem}
+          alt={`Página do PDF ${arquivo}`}
+          className="max-h-[60vh] w-auto max-w-full justify-self-start rounded border border-linha bg-white object-contain"
+        />
+      )}
+      <div className="flex min-w-0 flex-col items-start gap-4">
+        <p className="text-sm font-semibold">Página lida por OCR: {arquivo}</p>
+        {imagem ? (
+          <button ref={botao} type="button" aria-haspopup="dialog" onClick={() => setAmpliada(true)} className="botao-secundario">
+            <Maximize2 size={16} aria-hidden="true" />
+            Ampliar
+          </button>
+        ) : (
+          <p className="text-sm text-suave">Imagem da página não está disponível. Carregue o PDF de novo para conferir.</p>
+        )}
+        {children}
+      </div>
+      {imagem && ampliada && <PaginaAmpliada imagem={imagem} arquivo={arquivo} onFechar={fechar} />}
     </div>
   );
 }

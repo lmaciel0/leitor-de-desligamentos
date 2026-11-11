@@ -15,16 +15,27 @@ describe('ImagemDaPagina', () => {
     expect(imagem).toHaveAttribute('src', 'data:image/jpeg;base64,AAAA');
   });
 
-  it('o botão alterna entre Ampliar e Reduzir e acompanha com aria-pressed', async () => {
+  it('Ampliar abre a página em tela cheia; Escape fecha e devolve o foco ao botão', async () => {
     guardarImagem(7, 'data:image/jpeg;base64,AAAA');
     render(<ImagemDaPagina idDoRegistro={7} arquivo="a.pdf" />);
     const ampliar = screen.getByRole('button', { name: 'Ampliar' });
-    expect(ampliar).toHaveAttribute('aria-pressed', 'false');
+    expect(ampliar).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(ampliar).not.toHaveAttribute('aria-pressed');
     await userEvent.click(ampliar);
-    const reduzir = screen.getByRole('button', { name: 'Reduzir' });
-    expect(reduzir).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(reduzir);
-    expect(screen.getByRole('button', { name: 'Ampliar' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('dialog', { name: 'Página do PDF a.pdf, em tela cheia' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ampliar' })).toHaveFocus();
+  });
+
+  it('mostra o que vem como filhos na coluna do botão', () => {
+    guardarImagem(7, 'data:image/jpeg;base64,AAAA');
+    render(
+      <ImagemDaPagina idDoRegistro={7} arquivo="a.pdf">
+        <p>filho</p>
+      </ImagemDaPagina>,
+    );
+    expect(screen.getByText('filho')).toBeInTheDocument();
   });
 
   it('sem imagem em memória, avisa que não está disponível e não mostra img', () => {
