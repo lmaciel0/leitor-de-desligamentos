@@ -222,6 +222,43 @@ describe('App', () => {
     expect(await screen.findByText('Trabalho salvo. O arquivo contém CPF e NIS: guarde-o em local seguro.')).toBeInTheDocument();
   });
 
+  async function trabalhoSalvo(): Promise<DesligamentoRecord[]> {
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar trabalho' }));
+    const chamadas = vi.mocked(baixarBlob).mock.calls;
+    const [blob] = chamadas[chamadas.length - 1];
+    return (JSON.parse(await blob.text()) as { registros: DesligamentoRecord[] }).registros;
+  }
+
+  it('o trabalho salvo guarda quem passou por revisão no lote, mesmo depois de virar OK', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf');
+    await userEvent.type(await screen.findByLabelText('Nome de 2.pdf'), 'B');
+    expect(await screen.findByRole('button', { name: /2 OK/ })).toBeInTheDocument();
+    const [primeiro, segundo] = await trabalhoSalvo();
+    expect(primeiro.revisarNoLote).not.toBe(true);
+    expect(segundo.revisarNoLote).toBe(true);
+    expect(segundo.status).toBe('OK');
+  });
+
+  it('registro OK que vira REVISAR por edição passa a contar como revisado no lote', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.clear(await screen.findByLabelText('Nome de 1.pdf'));
+    expect(await screen.findByRole('button', { name: /1 REVISAR/ })).toBeInTheDocument();
+    expect((await trabalhoSalvo())[0].revisarNoLote).toBe(true);
+  });
+
+  it('abrir trabalho antigo, sem a chave, conta como revisado quem está REVISAR ao abrir', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1), revisar(2)]));
+    await screen.findByLabelText('Nome de 2.pdf');
+    const [primeiro, segundo] = await trabalhoSalvo();
+    expect(primeiro.revisarNoLote).not.toBe(true);
+    expect(segundo.revisarNoLote).toBe(true);
+  });
+
   it('abrir trabalho mostra os registros salvos, com as conferências, sem processar nada', async () => {
     render(<App />);
     await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1, { validado: true }), revisar(2)]));

@@ -73,6 +73,13 @@ function lerMarcaDeOcr(
   return ocr;
 }
 
+/** Lê `revisarNoLote` (opcional): só devolve a chave se ela existir no arquivo. */
+function lerRevisaoNoLote(bruto: Record<string, unknown>, invalido: (campo: string) => Error): { revisarNoLote?: boolean } {
+  if (bruto.revisarNoLote === undefined) return {};
+  if (typeof bruto.revisarNoLote !== 'boolean') throw invalido('revisarNoLote');
+  return { revisarNoLote: bruto.revisarNoLote };
+}
+
 function lerRegistro(bruto: unknown, posicao: number): DesligamentoRecord {
   const invalido = (campo: string) => new TrabalhoInvalido(`Registro ${posicao}: campo "${campo}" inválido.`);
   if (!ehObjeto(bruto)) throw new TrabalhoInvalido(`Registro ${posicao}: não é um registro.`);
@@ -106,6 +113,7 @@ function lerRegistro(bruto: unknown, posicao: number): DesligamentoRecord {
   }
 
   const ocr = lerMarcaDeOcr(bruto, invalido, grandeDemais);
+  const revisao = lerRevisaoNoLote(bruto, invalido);
   // Sem a marca, mas com a pendência de OCR (a marca foi apagada à mão): continua registro de OCR,
   // em REVISAR até ser validado. Marca explícita (true ou false) prevalece.
   if (ocr.lidoPorOcr === undefined && (inconsistencias as string[]).includes(PENDENCIA_OCR)) ocr.lidoPorOcr = true;
@@ -120,6 +128,7 @@ function lerRegistro(bruto: unknown, posicao: number): DesligamentoRecord {
     ...textos,
     ...conferencias,
     ...ocr,
+    ...revisao,
     status: problemas.length === 0 ? 'OK' : 'REVISAR',
     inconsistencias: problemas,
   };

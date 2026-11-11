@@ -12,6 +12,7 @@ import { baixarBlob } from './lib/exportar/baixar';
 import { conferirRegistro, normalizarCampo, recalcular } from './lib/parser/campos';
 import { limparImagens } from './lib/ocr/imagens';
 import { processarLote } from './lib/processar';
+import { marcarRevisao } from './lib/revisao';
 import { aplicarTema, salvarTema, temaInicial, type Tema } from './lib/tema';
 import { descreverData, gerarTrabalho, lerTrabalho, nomeDoArquivoDeTrabalho } from './lib/trabalho';
 import type { CampoConferencia, CampoEditavel, DesligamentoRecord, Status } from './tipos';
@@ -48,6 +49,8 @@ function avisoDeArquivos(repetidos: File[], naoPdf: File[]): string {
 export default function App() {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [registros, setRegistros] = useState<DesligamentoRecord[]>([]);
+  /** Número do lote atual: sobe ao terminar de processar, abrir trabalho e limpar os dados. */
+  const [, setLote] = useState(0);
   const [municipios, setMunicipios] = useState<string[]>([]);
   const [motivos, setMotivos] = useState<string[]>([]);
   const [statusAtivo, setStatusAtivo] = useState<Status | null>(null);
@@ -150,7 +153,8 @@ export default function App() {
         },
       });
       if (controlador.signal.aborted) return;
-      setRegistros(resultado);
+      setRegistros(marcarRevisao(resultado));
+      setLote((atual) => atual + 1);
       setEditadas(new Set());
       zerarFiltros();
       const ok = resultado.filter((registro) => registro.status === 'OK').length;
@@ -199,7 +203,8 @@ export default function App() {
     limparImagens();
     setTrabalhoPendente(null);
     setArquivos([]);
-    setRegistros(lidos);
+    setRegistros(marcarRevisao(lidos));
+    setLote((atual) => atual + 1);
     setEditadas(new Set());
     zerarFiltros();
     // O aviso visível já é uma região status (anunciada); não repetir na região só para leitores de tela.
@@ -222,6 +227,7 @@ export default function App() {
     setTrabalhoPendente(null);
     setArquivos([]);
     setRegistros([]);
+    setLote((atual) => atual + 1);
     setEditadas(new Set());
     setProgresso({ feitos: 0, total: 0 });
     setErro('');
@@ -233,14 +239,18 @@ export default function App() {
   function editar(id: number, campo: CampoEditavel, valor: string) {
     setEditadas((atuais) => new Set(atuais).add(id));
     setRegistros((atuais) =>
-      atuais.map((registro) => (registro.id === id ? recalcular({ ...registro, [campo]: normalizarCampo(campo, valor) }) : registro)),
+      atuais.map((registro) =>
+        registro.id === id ? marcarRevisao([recalcular({ ...registro, [campo]: normalizarCampo(campo, valor) })])[0] : registro,
+      ),
     );
   }
 
   /** As marcações de conferência são do operador: só "validado" de um registro de OCR muda o status, e todas contam como edição ao reprocessar. */
   function conferir(id: number, campo: CampoConferencia, marcado: boolean) {
     setEditadas((atuais) => new Set(atuais).add(id));
-    setRegistros((atuais) => atuais.map((registro) => (registro.id === id ? conferirRegistro(registro, campo, marcado) : registro)));
+    setRegistros((atuais) =>
+      atuais.map((registro) => (registro.id === id ? marcarRevisao([conferirRegistro(registro, campo, marcado)])[0] : registro)),
+    );
   }
 
   return (

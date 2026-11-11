@@ -30,4 +30,6 @@ export interface DesligamentoRecord extends CamposDesligamento, ConferenciaDesli
   lidoPorOcr?: boolean;
   /** Avisos da leitura por OCR (ex.: mais de um motivo marcado). Somem quando o registro é validado. Ausente vale []. */
   avisosOcr?: string[];
+  /** Precisou de revisão em algum momento do lote (alimenta "X de Y conferidos"). Ausente vale false. */
+  revisarNoLote?: boolean;
 }

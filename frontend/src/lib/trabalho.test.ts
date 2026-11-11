@@ -109,6 +109,24 @@ describe('arquivo de trabalho', () => {
     expect(() => lerTrabalho(gerarTrabalho(muitos, salvoEm))).toThrow('mais de 5000 registros');
   });
 
+  it('preserva revisarNoLote: true num registro hoje OK', () => {
+    const lido = lerTrabalho(gerarTrabalho([registro({ revisarNoLote: true })], salvoEm)).registros[0];
+    expect(lido.status).toBe('OK');
+    expect(lido.revisarNoLote).toBe(true);
+  });
+
+  it('recusa revisarNoLote que não é booleano', () => {
+    const conteudo = JSON.parse(gerarTrabalho([registro()], salvoEm));
+    conteudo.registros[0].revisarNoLote = 'sim';
+    expect(() => lerTrabalho(JSON.stringify(conteudo))).toThrow('Registro 1: campo "revisarNoLote" inválido.');
+  });
+
+  it('abre sem a chave revisarNoLote quando o arquivo não a tem, e continua na versão 2', () => {
+    const texto = gerarTrabalho([registro()], salvoEm);
+    expect(JSON.parse(texto).versao).toBe(2);
+    expect('revisarNoLote' in lerTrabalho(texto).registros[0]).toBe(false);
+  });
+
   it('abre um trabalho da versão 1, sem a marca de OCR', () => {
     const conteudo = { ...JSON.parse(gerarTrabalho([registro()], salvoEm)), versao: 1 };
     const lido = lerTrabalho(JSON.stringify(conteudo)).registros[0];
