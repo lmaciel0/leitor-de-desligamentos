@@ -1,5 +1,6 @@
 import {
   CAMPOS_EDITAVEIS,
+  type CampoConferencia,
   type CampoEditavel,
   type CamposDesligamento,
   type DesligamentoRecord,
@@ -203,8 +204,36 @@ export function statusFor(campos: CamposDesligamento): Status {
   return inconsistencies(campos).length === 0 ? 'OK' : 'REVISAR';
 }
 
+const PENDENCIA_NIB_DIVERGENTE = 'NIB diferente dos 10 primeiros dígitos do CPF';
+
+/**
+ * Pendências que vêm dos campos. Registro de OCR não validado ganha a pendência fixa de OCR,
+ * o aviso de NIB divergente e os avisos da leitura; ao validar, só restam as inconsistências dos campos.
+ */
+export function pendenciasDoRegistro(
+  registro: Pick<DesligamentoRecord, CampoEditavel | 'validado' | 'lidoPorOcr' | 'avisosOcr'>,
+): string[] {
+  const dosCampos = inconsistencies(registro);
+  if (!registro.lidoPorOcr || registro.validado) return dosCampos;
+  return [
+    PENDENCIA_OCR,
+    ...dosCampos,
+    ...(nibDivergeDoCpf(registro) ? [PENDENCIA_NIB_DIVERGENTE] : []),
+    ...(registro.avisosOcr ?? []),
+  ];
+}
+
 /** Recalcula status e inconsistências a partir dos campos (usado depois de editar uma célula). */
 export function recalcular(registro: DesligamentoRecord): DesligamentoRecord {
-  const problemas = inconsistencies(registro);
+  const problemas = pendenciasDoRegistro(registro);
   return { ...registro, inconsistencias: problemas, status: problemas.length === 0 ? 'OK' : 'REVISAR' };
+}
+
+/**
+ * Marca ou desmarca uma conferência. Só "validado" de um registro de OCR muda status e pendências;
+ * nos demais casos nada é recalculado (inclusive as pendências "PDF ..." da leitura, que recalcular apagaria).
+ */
+export function conferirRegistro(registro: DesligamentoRecord, campo: CampoConferencia, marcado: boolean): DesligamentoRecord {
+  const atualizado = { ...registro, [campo]: marcado };
+  return campo === 'validado' && registro.lidoPorOcr ? recalcular(atualizado) : atualizado;
 }

@@ -6,7 +6,7 @@ export const CAMPOS_EDITAVEIS: readonly CampoEditavel[] = ['municipio', 'cpf', '
 
 export type CamposDesligamento = Record<CampoEditavel, string>;
 
-/** Marcações feitas à mão pelo operador; não influenciam o status OK/REVISAR. */
+/** Marcações feitas à mão pelo operador; só "validado" influencia o status, e apenas em registro lido por OCR. */
 export type CampoConferencia = 'municipioConfere' | 'validado' | 'recebeCmic';
 
 export const CAMPOS_CONFERENCIA: readonly CampoConferencia[] = ['municipioConfere', 'validado', 'recebeCmic'];
@@ -26,4 +26,8 @@ export interface DesligamentoRecord extends CamposDesligamento, ConferenciaDesli
   referencia: string;
   status: Status;
   inconsistencias: string[];
+  /** Texto reconhecido por OCR (PDF escaneado): o registro só vira OK depois de "validado". Ausente vale false. */
+  lidoPorOcr?: boolean;
+  /** Avisos da leitura por OCR (ex.: mais de um motivo marcado). Somem quando o registro é validado. Ausente vale []. */
+  avisosOcr?: string[];
 }

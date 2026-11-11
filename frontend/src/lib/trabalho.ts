@@ -1,5 +1,5 @@
 import { CAMPOS_CONFERENCIA, CAMPOS_EDITAVEIS, type DesligamentoRecord } from '../tipos';
-import { inconsistencies } from './parser/campos';
+import { PENDENCIA_OCR, pendenciasDoRegistro } from './parser/campos';
 
 /**
  * Arquivo de trabalho: guarda os registros (com edições e conferências) num .json que o
@@ -8,7 +8,9 @@ import { inconsistencies } from './parser/campos';
  */
 
 const FORMATO = 'leitor-de-desligamentos/trabalho';
-const VERSAO = 1;
+const VERSAO = 2;
+/** A versão 1 não tem a marca de OCR; continua abrindo. */
+const VERSOES_ACEITAS: readonly unknown[] = [1, 2];
 export const MAX_REGISTROS_NO_TRABALHO = 5000;
 /** Nenhum campo do formulário chega perto disso; acima, o arquivo foi alterado ou está corrompido. */
 const MAX_CARACTERES_POR_CAMPO = 1000;
@@ -49,6 +51,28 @@ function ehObjeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor);
 }
 
+/** Lê `lidoPorOcr` e `avisosOcr` (ausentes em trabalhos da versão 1): só devolve as chaves que existem no arquivo. */
+function lerMarcaDeOcr(
+  bruto: Record<string, unknown>,
+  invalido: (campo: string) => Error,
+  grandeDemais: (campo: string) => Error,
+): { lidoPorOcr?: boolean; avisosOcr?: string[] } {
+  const ocr: { lidoPorOcr?: boolean; avisosOcr?: string[] } = {};
+  if (bruto.lidoPorOcr !== undefined) {
+    if (typeof bruto.lidoPorOcr !== 'boolean') throw invalido('lidoPorOcr');
+    ocr.lidoPorOcr = bruto.lidoPorOcr;
+  }
+  const avisos = bruto.avisosOcr;
+  if (avisos !== undefined) {
+    if (!Array.isArray(avisos) || !avisos.every((item) => typeof item === 'string')) throw invalido('avisosOcr');
+    if (avisos.length > MAX_PENDENCIAS || (avisos as string[]).some((item) => item.length > MAX_CARACTERES_POR_CAMPO)) {
+      throw grandeDemais('avisosOcr');
+    }
+    ocr.avisosOcr = avisos as string[];
+  }
+  return ocr;
+}
+
 function lerRegistro(bruto: unknown, posicao: number): DesligamentoRecord {
   const invalido = (campo: string) => new TrabalhoInvalido(`Registro ${posicao}: campo "${campo}" inválido.`);
   if (!ehObjeto(bruto)) throw new TrabalhoInvalido(`Registro ${posicao}: não é um registro.`);
@@ -81,14 +105,18 @@ function lerRegistro(bruto: unknown, posicao: number): DesligamentoRecord {
     throw grandeDemais('inconsistencias');
   }
 
+  const ocr = lerMarcaDeOcr(bruto, invalido, grandeDemais);
+
   // O status salvo não é confiável (o arquivo pode ter sido editado): recalcula a partir dos
   // campos, como numa edição. As pendências da leitura do PDF não dá para recalcular; ficam.
-  const daLeitura = (inconsistencias as string[]).filter(ehPendenciaDaLeitura);
-  const problemas = [...daLeitura, ...inconsistencies(textos)];
+  // Em registro de OCR a pendência de OCR também é recalculada: não pode ser duplicada nem sumir por edição à mão.
+  const daLeitura = (inconsistencias as string[]).filter((item) => ehPendenciaDaLeitura(item) && item !== PENDENCIA_OCR);
+  const problemas = [...daLeitura, ...pendenciasDoRegistro({ ...textos, ...conferencias, ...ocr })];
   return {
     id: posicao,
     ...textos,
     ...conferencias,
+    ...ocr,
     status: problemas.length === 0 ? 'OK' : 'REVISAR',
     inconsistencias: problemas,
   };
@@ -102,7 +130,7 @@ export function lerTrabalho(texto: string): { registros: DesligamentoRecord[]; s
     throw new TrabalhoInvalido(NAO_E_TRABALHO);
   }
   if (!ehObjeto(conteudo) || conteudo.formato !== FORMATO) throw new TrabalhoInvalido(NAO_E_TRABALHO);
-  if (conteudo.versao !== VERSAO) {
+  if (!VERSOES_ACEITAS.includes(conteudo.versao)) {
     throw new TrabalhoInvalido(
       `Este trabalho foi salvo na versão ${String(conteudo.versao)} do formato, que esta versão do Leitor não sabe abrir.`,
     );

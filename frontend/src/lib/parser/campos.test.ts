@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { DesligamentoRecord } from '../../tipos';
-import { inconsistencies, nibDivergeDoCpf, normalizarCampo, parseText, PENDENCIA_OCR, recalcular, statusFor } from './campos';
+import {
+  conferirRegistro,
+  inconsistencies,
+  nibDivergeDoCpf,
+  normalizarCampo,
+  parseText,
+  PENDENCIA_OCR,
+  pendenciasDoRegistro,
+  recalcular,
+  statusFor,
+} from './campos';
 
 const TEXTO = [
   'MUNICÍPIO: CIDADE EXEMPLO',
@@ -278,5 +288,107 @@ describe('nibDivergeDoCpf', () => {
 describe('PENDENCIA_OCR', () => {
   it('tem o texto combinado', () => {
     expect(PENDENCIA_OCR).toBe('PDF lido por OCR: conferir os campos');
+  });
+});
+
+describe('registro lido por OCR', () => {
+  const base: DesligamentoRecord = {
+    id: 1,
+    arquivo: 'a.pdf',
+    referencia: '09/10/2026',
+    municipio: 'CIDADE',
+    cpf: '52998224725',
+    nis: '12345678919',
+    nib: '5299822472',
+    nome: 'ANA',
+    motivo: 'Mudança',
+    municipioConfere: false,
+    validado: false,
+    recebeCmic: false,
+    status: 'REVISAR',
+    inconsistencias: [PENDENCIA_OCR],
+    lidoPorOcr: true,
+  };
+
+  it('sem problemas e sem validar: REVISAR com a pendência de OCR em primeiro', () => {
+    const r = recalcular(base);
+    expect(r.status).toBe('REVISAR');
+    expect(r.inconsistencias).toEqual([PENDENCIA_OCR]);
+  });
+
+  it('editar uma célula não tira o registro de REVISAR', () => {
+    const r = recalcular({ ...base, nome: 'OUTRO NOME' });
+    expect(r.status).toBe('REVISAR');
+    expect(r.inconsistencias[0]).toBe(PENDENCIA_OCR);
+  });
+
+  it('marcar "validado" leva a OK e desmarcar volta a REVISAR', () => {
+    const validado = conferirRegistro(base, 'validado', true);
+    expect(validado.validado).toBe(true);
+    expect(validado.status).toBe('OK');
+    expect(validado.inconsistencias).toEqual([]);
+    const desfeito = conferirRegistro(validado, 'validado', false);
+    expect(desfeito.validado).toBe(false);
+    expect(desfeito.status).toBe('REVISAR');
+    expect(desfeito.inconsistencias).toEqual([PENDENCIA_OCR]);
+  });
+
+  it('os avisos de OCR aparecem até validar e somem depois', () => {
+    const aviso = 'Mais de um motivo de desligamento marcado';
+    expect(recalcular({ ...base, avisosOcr: [aviso] }).inconsistencias).toEqual([PENDENCIA_OCR, aviso]);
+    const validado = recalcular({ ...base, avisosOcr: [aviso], validado: true });
+    expect(validado.inconsistencias).toEqual([]);
+    expect(validado.status).toBe('OK');
+  });
+
+  it('aponta o NIB que diverge do CPF enquanto não validado', () => {
+    const divergente = { ...base, nib: '0058235124' };
+    expect(pendenciasDoRegistro(divergente)).toEqual([PENDENCIA_OCR, 'NIB diferente dos 10 primeiros dígitos do CPF']);
+    expect(pendenciasDoRegistro({ ...divergente, validado: true })).toEqual([]);
+  });
+
+  it('validado com CPF de dígito inválido continua em REVISAR', () => {
+    const r = conferirRegistro({ ...base, cpf: '52998224724', nib: '5299822472' }, 'validado', true);
+    expect(r.status).toBe('REVISAR');
+    expect(r.inconsistencias).toEqual(['CPF com dígito verificador inválido']);
+  });
+
+  it('as outras conferências de um registro de OCR não recalculam nada', () => {
+    const r = conferirRegistro(base, 'recebeCmic', true);
+    expect(r.recebeCmic).toBe(true);
+    expect(r.status).toBe('REVISAR');
+    expect(r.inconsistencias).toEqual([PENDENCIA_OCR]);
+  });
+});
+
+describe('conferirRegistro em registro comum', () => {
+  const comum: DesligamentoRecord = {
+    id: 1,
+    arquivo: 'a.pdf',
+    referencia: '09/10/2026',
+    municipio: 'CIDADE',
+    cpf: '52998224725',
+    nis: '12345678919',
+    nib: '1',
+    nome: 'ANA',
+    motivo: 'Mudança',
+    municipioConfere: false,
+    validado: false,
+    recebeCmic: false,
+    status: 'OK',
+    inconsistencias: [],
+  };
+
+  it('só marca o campo: status e inconsistências ficam como estavam', () => {
+    const r = conferirRegistro(comum, 'validado', true);
+    expect(r.validado).toBe(true);
+    expect(r.status).toBe('OK');
+    expect(r.inconsistencias).toEqual([]);
+  });
+
+  it('preserva as pendências "PDF ..." da leitura', () => {
+    const r = conferirRegistro({ ...comum, status: 'REVISAR', inconsistencias: ['PDF maior que 20 MB'] }, 'validado', true);
+    expect(r.status).toBe('REVISAR');
+    expect(r.inconsistencias).toEqual(['PDF maior que 20 MB']);
   });
 });
