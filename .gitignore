@@ -42,3 +42,6 @@ playwright-report/
 
 # OCR: copiado de node_modules por frontend/scripts/copiar-ocr.mjs
 frontend/public/ocr/
+
+# Artefatos locais do fluxo de desenvolvimento (brainstorm, planos em execução, referências)
+.superpowers/
