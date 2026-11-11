@@ -72,10 +72,25 @@ export default function App() {
   const controladorRef = useRef<AbortController | null>(null);
   const botaoProcessar = useRef<HTMLButtonElement>(null);
   const entradaTrabalho = useRef<HTMLInputElement>(null);
+  const tituloBoasVindas = useRef<HTMLHeadingElement>(null);
+  /** Foco a entregar quando a tela trocar entre boas-vindas e faixa compacta (senão ele cairia no body). */
+  const focoPendente = useRef<'processar' | 'boasvindas' | null>(null);
 
   useEffect(() => {
     aplicarTema(tema);
   }, [tema]);
+
+  /** Sem PDFs, sem resultados e sem lote em andamento: só as boas-vindas. */
+  const inicial = arquivos.length === 0 && registros.length === 0 && !carregando;
+
+  // A troca de tela desmonta o elemento focado: leva o foco ao destino combinado (WCAG 2.4.3).
+  useEffect(() => {
+    const destino = focoPendente.current;
+    if (destino === 'processar' && !inicial) botaoProcessar.current?.focus();
+    else if (destino === 'boasvindas' && inicial) tituloBoasVindas.current?.focus();
+    else return;
+    focoPendente.current = null;
+  }, [inicial]);
 
   function alternarTema() {
     const proximo: Tema = tema === 'escuro' ? 'claro' : 'escuro';
@@ -111,6 +126,7 @@ export default function App() {
     const pdfs = novos.filter(ehPdf);
     const naoPdf = novos.filter((arquivo) => !ehPdf(arquivo));
     const { aceitos, repetidos } = await separarDuplicados(arquivos, pdfs);
+    if (inicial && aceitos.length > 0) focoPendente.current = 'processar';
     setArquivos((atuais) => [...atuais, ...aceitos]);
     setAviso(avisoDeArquivos(repetidos, naoPdf));
   }
@@ -225,6 +241,7 @@ export default function App() {
   }
 
   function limpar() {
+    focoPendente.current = 'boasvindas';
     controladorRef.current?.abort();
     controladorRef.current = null;
     setCarregando(false);
@@ -263,8 +280,6 @@ export default function App() {
     );
   }
 
-  /** Sem PDFs, sem resultados e sem lote em andamento: só as boas-vindas. */
-  const inicial = arquivos.length === 0 && registros.length === 0 && !carregando;
   const avisoVisivel = aviso ? (
     <p role="status" className="mt-3 text-sm text-forte">
       {aviso}
@@ -283,7 +298,7 @@ export default function App() {
       <main className="mx-auto max-w-[1400px] px-4 pb-8 pt-6 md:px-10">
         {inicial ? (
           <>
-            <BoasVindas onAdicionar={adicionar} onAbrirTrabalho={(arquivo) => void escolherTrabalho(arquivo)} entradaTrabalho={entradaTrabalho} />
+            <BoasVindas onAdicionar={adicionar} onAbrirTrabalho={(arquivo) => void escolherTrabalho(arquivo)} entradaTrabalho={entradaTrabalho} tituloRef={tituloBoasVindas} />
             {avisoVisivel}
           </>
         ) : (
@@ -343,12 +358,15 @@ export default function App() {
                 </button>
               </div>
             </div>
-            {carregando && etapa && (
-              <div role="status" className="mt-4 flex items-center gap-3 rounded-cartao border border-linha bg-superficie p-3 text-sm text-forte shadow-cartao">
-                <LoaderCircle className="shrink-0 animate-spin text-coral-texto" size={18} aria-hidden="true" />
-                <span>{etapa}</span>
-              </div>
-            )}
+            {/* Fica montada enquanto a faixa compacta existe; só o conteúdo muda, para os leitores de tela anunciarem a etapa. */}
+            <div role="status" data-testid="etapa-status">
+              {carregando && etapa && (
+                <div className="mt-4 flex items-center gap-3 rounded-cartao border border-linha bg-superficie p-3 text-sm text-forte shadow-cartao">
+                  <LoaderCircle className="shrink-0 animate-spin text-coral-texto" size={18} aria-hidden="true" />
+                  <span>{etapa}</span>
+                </div>
+              )}
+            </div>
           </>
         )}
         {confirmando && (

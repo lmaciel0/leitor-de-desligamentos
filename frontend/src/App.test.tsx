@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesligamentoRecord } from './tipos';
@@ -129,15 +129,55 @@ describe('App', () => {
     expect(botao.parentElement).toContainElement(barra);
   });
 
-  it('a etapa do lote aparece num cartão com role status', async () => {
+  it('a região de status da etapa já existe antes da mensagem e só muda o conteúdo', async () => {
+    let opcoesDoLote: Parameters<typeof processarLote>[2];
     vi.mocked(processarLote).mockImplementation((_arquivos, _agora, opcoes) => {
-      opcoes?.onEtapa?.('Lendo página 2 por OCR...');
+      opcoesDoLote = opcoes;
       return new Promise<DesligamentoRecord[]>(() => {});
     });
     render(<App />);
     await enviarEProcessar('a.pdf');
-    const texto = await screen.findByText('Lendo página 2 por OCR...');
-    expect(texto.closest('[role="status"]')).not.toBeNull();
+    const regiao = await screen.findByTestId('etapa-status');
+    expect(regiao).toHaveAttribute('role', 'status');
+    expect(regiao).toBeEmptyDOMElement();
+    act(() => opcoesDoLote?.onEtapa?.('Lendo página 2 por OCR...'));
+    // O mesmo nó, já montado antes: leitores de tela anunciam a mudança de conteúdo.
+    expect(screen.getByTestId('etapa-status')).toBe(regiao);
+    expect(regiao).toHaveTextContent('Lendo página 2 por OCR...');
+  });
+
+  it('depois de subir o primeiro PDF o foco vai para Processar arquivos', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    const botao = await screen.findByRole('button', { name: /Processar arquivos/ });
+    expect(botao).toHaveFocus();
+  });
+
+  it('só arquivos que não são PDF não tiram o foco da tela de boas-vindas', async () => {
+    render(<App />);
+    fireEvent.drop(screen.getByTestId('zona-upload'), {
+      dataTransfer: { files: [new File(['x'], 'nota.txt', { type: 'text/plain' })] },
+    });
+    expect(await screen.findByText('1 arquivo ignorado por não ser PDF: nota.txt.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
+    expect(document.body).toHaveFocus();
+  });
+
+  it('adicionar mais PDFs com a faixa compacta não rouba o foco', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    await screen.findByRole('button', { name: /Processar arquivos/ });
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['y'], 'b.pdf', { type: 'application/pdf' }));
+    await screen.findByText('b.pdf');
+    expect(screen.getByLabelText(/escolha arquivos/i)).toHaveFocus();
+  });
+
+  it('Limpar dados devolve as boas-vindas com o foco no título', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Limpar dados' }));
+    const titulo = await screen.findByRole('heading', { name: 'Solte os termos de desligamento aqui' });
+    expect(titulo).toHaveFocus();
   });
 
   it('clicar em REVISAR na triagem filtra e clicar de novo remove o filtro', async () => {

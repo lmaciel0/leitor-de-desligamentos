@@ -6,6 +6,8 @@ interface Props {
   onAdicionar: (arquivos: File[]) => void;
   onAbrirTrabalho: (arquivo: File | undefined) => void;
   entradaTrabalho: RefObject<HTMLInputElement>;
+  /** Opcional: quem usa pode mover o foco para o título (ex.: ao voltar de Limpar dados). */
+  tituloRef?: RefObject<HTMLHeadingElement>;
 }
 
 /** Folha de papel desenhada; as cores vêm dos tokens, então valem nos dois temas. */
@@ -27,7 +29,7 @@ function Folha({ classe, destaque = false }: { classe: string; destaque?: boolea
 
 const ANEL = 'focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-anel';
 
-export function BoasVindas({ onAdicionar, onAbrirTrabalho, entradaTrabalho }: Props) {
+export function BoasVindas({ onAdicionar, onAbrirTrabalho, entradaTrabalho, tituloRef }: Props) {
   const [arrastando, setArrastando] = useState(false);
   // O movimento só desloca as folhas: nada aqui bloqueia o soltar.
   const sobe = arrastando ? '-translate-y-1.5' : '';
@@ -57,7 +59,7 @@ export function BoasVindas({ onAdicionar, onAbrirTrabalho, entradaTrabalho }: Pr
             <Folha classe={`left-[64px] top-2 ${arrastando ? 'rotate-[10deg]' : 'rotate-[4deg]'} ${sobe}`} />
             <Folha classe={`left-[37px] top-0.5 ${sobe}`} destaque />
           </div>
-          <h2 className="mt-2 font-titulo text-xl font-extrabold text-forte">Solte os termos de desligamento aqui</h2>
+          <h2 ref={tituloRef} tabIndex={-1} className="mt-2 font-titulo text-xl font-extrabold text-forte outline-none">Solte os termos de desligamento aqui</h2>
           <p className="mt-1 text-sm text-suave">PDF digital ou escaneado. Nada sai deste computador.</p>
           <span className="botao-primario mt-4">
             <Upload size={16} aria-hidden="true" />
