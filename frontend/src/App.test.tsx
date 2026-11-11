@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesligamentoRecord } from './tipos';
 
 vi.mock('./lib/processar', () => ({ processarLote: vi.fn() }));
 vi.mock('./lib/exportar/baixar', () => ({ baixarBlob: vi.fn() }));
+vi.mock('./lib/confete', () => ({ soltarConfete: vi.fn() }));
 
 import App from './App';
+import { soltarConfete } from './lib/confete';
 import { baixarBlob } from './lib/exportar/baixar';
 import { guardarImagem, obterImagem } from './lib/ocr/imagens';
 import { processarLote } from './lib/processar';
@@ -43,7 +45,8 @@ const revisar = (id: number) =>
 async function enviarEProcessar(...nomes: string[]) {
   const arquivos = nomes.map((nome) => new File(['x'], nome, { type: 'application/pdf' }));
   await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), arquivos);
-  await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+  // Adicionar é assíncrono (confere duplicados) e o botão só existe depois que o primeiro arquivo entra.
+  await userEvent.click(await screen.findByRole('button', { name: /Processar arquivos/ }));
 }
 
 describe('App', () => {
@@ -84,11 +87,121 @@ describe('App', () => {
     expect(screen.getByLabelText('Nome de 2.pdf')).toBeInTheDocument();
   });
 
-  it('exige ao menos um PDF para processar', async () => {
+  it('na tela inicial mostra as boas-vindas e nenhum botão de processar', () => {
     render(<App />);
-    await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+    expect(screen.getByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Processar arquivos/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Escolha um ou mais PDFs e clique em Processar arquivos.')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('zona-upload')).toHaveLength(1);
+    expect(screen.getAllByLabelText('Abrir trabalho')).toHaveLength(1);
+  });
+
+  it('depois de subir um PDF as boas-vindas somem e aparecem a zona compacta e o botão', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    expect(await screen.findByRole('button', { name: /Processar arquivos/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Solte os termos de desligamento aqui' })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('zona-upload')).toHaveLength(1);
+    expect(screen.getByLabelText(/escolha arquivos/i)).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Abrir trabalho')).toHaveLength(1);
+  });
+
+  it('exige ao menos um PDF para processar (trabalho aberto, sem arquivos)', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1)]));
+    await userEvent.click(await screen.findByRole('button', { name: /Processar arquivos/ }));
     expect(screen.getByText('Selecione ao menos um PDF.')).toBeInTheDocument();
     expect(processarLote).not.toHaveBeenCalled();
+  });
+
+  it('durante o processamento mostra a barra de progresso junto do botão', async () => {
+    vi.mocked(processarLote).mockImplementation((_arquivos, _agora, opcoes) => {
+      opcoes?.onProgresso?.(1, 3);
+      return new Promise<DesligamentoRecord[]>(() => {});
+    });
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf', '3.pdf');
+    const barra = await screen.findByRole('progressbar');
+    expect(barra).toHaveAttribute('aria-valuenow', '1');
+    expect(barra).toHaveAttribute('aria-valuemin', '0');
+    expect(barra).toHaveAttribute('aria-valuemax', '3');
+    expect(barra).toHaveAccessibleName();
+    const botao = screen.getByRole('button', { name: 'Processando 1 de 3' });
+    expect(botao).toBeDisabled();
+    expect(botao.parentElement).toContainElement(barra);
+  });
+
+  it('a região de status da etapa já existe antes da mensagem e só muda o conteúdo', async () => {
+    let opcoesDoLote: Parameters<typeof processarLote>[2];
+    vi.mocked(processarLote).mockImplementation((_arquivos, _agora, opcoes) => {
+      opcoesDoLote = opcoes;
+      return new Promise<DesligamentoRecord[]>(() => {});
+    });
+    render(<App />);
+    await enviarEProcessar('a.pdf');
+    const regiao = await screen.findByTestId('etapa-status');
+    expect(regiao).toHaveAttribute('role', 'status');
+    expect(regiao).toBeEmptyDOMElement();
+    act(() => opcoesDoLote?.onEtapa?.('Lendo página 2 por OCR...'));
+    // O mesmo nó, já montado antes: leitores de tela anunciam a mudança de conteúdo.
+    expect(screen.getByTestId('etapa-status')).toBe(regiao);
+    expect(regiao).toHaveTextContent('Lendo página 2 por OCR...');
+  });
+
+  it('depois de subir o primeiro PDF o foco vai para Processar arquivos', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    const botao = await screen.findByRole('button', { name: /Processar arquivos/ });
+    expect(botao).toHaveFocus();
+  });
+
+  it('só arquivos que não são PDF não tiram o foco da tela de boas-vindas', async () => {
+    render(<App />);
+    fireEvent.drop(screen.getByTestId('zona-upload'), {
+      dataTransfer: { files: [new File(['x'], 'nota.txt', { type: 'text/plain' })] },
+    });
+    expect(await screen.findByText('1 arquivo ignorado por não ser PDF: nota.txt.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
+    expect(document.body).toHaveFocus();
+  });
+
+  it('adicionar mais PDFs com a faixa compacta não rouba o foco', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    await screen.findByRole('button', { name: /Processar arquivos/ });
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['y'], 'b.pdf', { type: 'application/pdf' }));
+    await screen.findByText('b.pdf');
+    expect(screen.getByLabelText(/escolha arquivos/i)).toHaveFocus();
+  });
+
+  it('Limpar dados devolve as boas-vindas com o foco no título', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Limpar dados' }));
+    const titulo = await screen.findByRole('heading', { name: 'Solte os termos de desligamento aqui' });
+    expect(titulo).toHaveFocus();
+  });
+
+  it('remover o último PDF antes de processar devolve as boas-vindas com o foco no título', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], 'a.pdf', { type: 'application/pdf' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Remover a.pdf' }));
+    const titulo = await screen.findByRole('heading', { name: 'Solte os termos de desligamento aqui' });
+    expect(titulo).toHaveFocus();
+  });
+
+  it('abrir um trabalho a partir das boas-vindas leva o foco ao campo "Abrir trabalho" da faixa compacta', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1)]));
+    await screen.findByRole('checkbox', { name: 'Está validado: 1.pdf' });
+    expect(screen.getByLabelText('Abrir trabalho')).toHaveFocus();
+  });
+
+  it('abrir um trabalho sem registros continua nas boas-vindas', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([]));
+    expect(await screen.findByText(/Trabalho aberto: 0 registros/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
   });
 
   it('clicar em REVISAR na triagem filtra e clicar de novo remove o filtro', async () => {
@@ -206,7 +319,10 @@ describe('App', () => {
   it('salvar trabalho fica desabilitado sem resultados e baixa um .json com os registros e conferências', async () => {
     vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
     render(<App />);
-    expect(screen.getByRole('button', { name: 'Salvar trabalho' })).toBeDisabled();
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], '1.pdf', { type: 'application/pdf' }));
+    expect(await screen.findByRole('button', { name: 'Salvar trabalho' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    expect(await screen.findByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
     await enviarEProcessar('1.pdf', '2.pdf');
     await screen.findByRole('button', { name: /1 OK/ });
     await userEvent.click(screen.getByRole('checkbox', { name: 'Está validado: 1.pdf' }));
@@ -220,6 +336,43 @@ describe('App', () => {
       ['2.pdf', false],
     ]);
     expect(await screen.findByText('Trabalho salvo. O arquivo contém CPF e NIS: guarde-o em local seguro.')).toBeInTheDocument();
+  });
+
+  async function trabalhoSalvo(): Promise<DesligamentoRecord[]> {
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar trabalho' }));
+    const chamadas = vi.mocked(baixarBlob).mock.calls;
+    const [blob] = chamadas[chamadas.length - 1];
+    return (JSON.parse(await blob.text()) as { registros: DesligamentoRecord[] }).registros;
+  }
+
+  it('o trabalho salvo guarda quem passou por revisão no lote, mesmo depois de virar OK', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf');
+    await userEvent.type(await screen.findByLabelText('Nome de 2.pdf'), 'B');
+    expect(await screen.findByRole('button', { name: /2 OK/ })).toBeInTheDocument();
+    const [primeiro, segundo] = await trabalhoSalvo();
+    expect(primeiro.revisarNoLote).not.toBe(true);
+    expect(segundo.revisarNoLote).toBe(true);
+    expect(segundo.status).toBe('OK');
+  });
+
+  it('registro OK que vira REVISAR por edição passa a contar como revisado no lote', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.clear(await screen.findByLabelText('Nome de 1.pdf'));
+    expect(await screen.findByRole('button', { name: /1 REVISAR/ })).toBeInTheDocument();
+    expect((await trabalhoSalvo())[0].revisarNoLote).toBe(true);
+  });
+
+  it('abrir trabalho antigo, sem a chave, conta como revisado quem está REVISAR ao abrir', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1), revisar(2)]));
+    await screen.findByLabelText('Nome de 2.pdf');
+    const [primeiro, segundo] = await trabalhoSalvo();
+    expect(primeiro.revisarNoLote).not.toBe(true);
+    expect(segundo.revisarNoLote).toBe(true);
   });
 
   it('abrir trabalho mostra os registros salvos, com as conferências, sem processar nada', async () => {
@@ -293,8 +446,9 @@ describe('App', () => {
 
   it('Limpar dados descarta as imagens guardadas', async () => {
     render(<App />);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), new File(['x'], '1.pdf', { type: 'application/pdf' }));
     guardarImagem(1, 'data:image/jpeg;base64,AAAA');
-    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Limpar dados' }));
     expect(obterImagem(1)).toBeUndefined();
   });
 
@@ -309,7 +463,8 @@ describe('App', () => {
     concluir([registro(1)]);
     await waitFor(() => expect(screen.queryByLabelText('Nome de 1.pdf')).not.toBeInTheDocument());
     expect(within(document.body).queryByText('1.pdf')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Processar arquivos/ })).toBeEnabled();
+    // Sem arquivos nem resultados, volta a tela de boas-vindas (e o botão de processar some com a barra de ações).
+    expect(screen.getByRole('heading', { name: 'Solte os termos de desligamento aqui' })).toBeInTheDocument();
   });
 
   it('um CPF digitado com pontuação é normalizado e o registro fica OK', async () => {
@@ -349,5 +504,184 @@ describe('App', () => {
     expect(screen.getByLabelText('CIDADE X')).toBeChecked();
     await userEvent.click(screen.getByLabelText('CIDADE X'));
     expect(screen.getByLabelText('Município de 1.pdf')).toBeInTheDocument();
+  });
+});
+
+describe('App: barra superior', () => {
+  beforeEach(() => {
+    vi.mocked(processarLote).mockReset();
+    vi.mocked(baixarBlob).mockClear();
+    window.localStorage.clear();
+    document.documentElement.className = '';
+  });
+
+  const etapaAtual = () => {
+    const atual = within(screen.getByRole('navigation', { name: 'Etapas' }))
+      .getAllByRole('listitem')
+      .filter((item) => item.getAttribute('aria-current') === 'step');
+    return atual.map((item) => item.textContent?.replace(/concluída/, '').trim());
+  };
+
+  it('acompanha o fluxo: enviar, processar, revisar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    expect(etapaAtual()).toEqual(['Enviar']);
+    await userEvent.upload(screen.getByLabelText(/escolha arquivos/i), [new File(['x'], '1.pdf', { type: 'application/pdf' })]);
+    expect(etapaAtual()).toEqual(['Processar']);
+    await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+    await screen.findByRole('button', { name: /1 OK/ });
+    expect(etapaAtual()).toEqual(['Revisar']);
+  });
+
+  it('exportar conclui todas as etapas; editar depois volta para Revisar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await waitFor(() => expect(etapaAtual()).toEqual([]));
+    expect(within(screen.getByRole('navigation', { name: 'Etapas' })).getAllByText('concluída')).toHaveLength(4);
+    await userEvent.type(screen.getByLabelText('Nome de 2.pdf'), 'B');
+    expect(etapaAtual()).toEqual(['Revisar']);
+  });
+
+  it('salvar trabalho não conta como exportar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Salvar trabalho' }));
+    expect(etapaAtual()).toEqual(['Revisar']);
+  });
+
+  it('marcar conferência depois de exportar volta para Revisar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await waitFor(() => expect(etapaAtual()).toEqual([]));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Recebe CMIC: 1.pdf' }));
+    expect(etapaAtual()).toEqual(['Revisar']);
+  });
+
+  it('processar de novo depois de exportar zera o "exportado"', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await waitFor(() => expect(etapaAtual()).toEqual([]));
+    await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Processar de novo' }));
+    await waitFor(() => expect(etapaAtual()).toEqual(['Revisar']));
+  });
+
+  it('Limpar dados volta para Enviar, inclusive depois de exportar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    expect(etapaAtual()).toEqual(['Enviar']);
+  });
+
+  it('abrir um trabalho depois de exportar volta para Revisar', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await userEvent.click(await screen.findByRole('button', { name: 'Baixar XLSX' }));
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(7)]));
+    await userEvent.click(await screen.findByRole('button', { name: 'Abrir trabalho' }));
+    await waitFor(() => expect(etapaAtual()).toEqual(['Revisar']));
+  });
+
+  it('o selo "Local" explica que os PDFs não saem do computador', () => {
+    render(<App />);
+    const selo = screen.getByText('Local').closest('button');
+    expect(selo).not.toBeNull();
+    expect(selo).toHaveAccessibleDescription('Seus PDFs não saem deste computador.');
+  });
+});
+
+describe('App: confete', () => {
+  beforeEach(() => {
+    vi.mocked(processarLote).mockReset();
+    vi.mocked(soltarConfete).mockClear();
+    window.localStorage.clear();
+    document.documentElement.className = '';
+  });
+
+  it('lote processado sem nenhum REVISAR solta o confete uma vez', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await screen.findByLabelText('Nome de 1.pdf');
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
+  });
+
+  it('lote processado sem registros não solta o confete', async () => {
+    vi.mocked(processarLote).mockResolvedValue([]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await waitFor(() => expect(screen.getByRole('button', { name: /Processar arquivos/ })).toBeEnabled());
+    expect(soltarConfete).not.toHaveBeenCalled();
+  });
+
+  it('com REVISAR no lote, solta ao zerar e não repete se o REVISAR voltar e zerar de novo', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1), revisar(2)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf', '2.pdf');
+    const campo = await screen.findByLabelText('Nome de 2.pdf');
+    expect(soltarConfete).not.toHaveBeenCalled();
+    await userEvent.type(campo, 'B');
+    await screen.findByRole('button', { name: /2 OK/ });
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
+    await userEvent.clear(screen.getByLabelText('Nome de 2.pdf'));
+    await screen.findByRole('button', { name: /1 REVISAR/ });
+    await userEvent.type(screen.getByLabelText('Nome de 2.pdf'), 'C');
+    await screen.findByRole('button', { name: /2 OK/ });
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
+  });
+
+  it('um lote novo solta de novo (no máximo uma vez por lote)', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await screen.findByLabelText('Nome de 1.pdf');
+    await userEvent.click(screen.getByRole('button', { name: /Processar arquivos/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Processar de novo' }));
+    await waitFor(() => expect(soltarConfete).toHaveBeenCalledTimes(2));
+  });
+
+  it('abrir trabalho que já está todo OK não solta o confete', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([registro(1)]));
+    await screen.findByLabelText('Nome de 1.pdf');
+    expect(soltarConfete).not.toHaveBeenCalled();
+  });
+
+  it('abrir trabalho com REVISAR solta ao corrigir o último', async () => {
+    render(<App />);
+    await userEvent.upload(screen.getByLabelText('Abrir trabalho'), arquivoDeTrabalho([revisar(1)]));
+    await userEvent.type(await screen.findByLabelText('Nome de 1.pdf'), 'B');
+    await screen.findByRole('button', { name: /1 OK/ });
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
+  });
+
+  it('Limpar dados não solta o confete', async () => {
+    vi.mocked(processarLote).mockResolvedValue([revisar(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await screen.findByLabelText('Nome de 1.pdf');
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    await screen.findByText(/Solte os termos/);
+    expect(soltarConfete).not.toHaveBeenCalled();
+  });
+
+  it('Limpar dados depois de um lote com confete não solta outro', async () => {
+    vi.mocked(processarLote).mockResolvedValue([registro(1)]);
+    render(<App />);
+    await enviarEProcessar('1.pdf');
+    await screen.findByLabelText('Nome de 1.pdf');
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar dados' }));
+    await screen.findByText(/Solte os termos/);
+    expect(soltarConfete).toHaveBeenCalledTimes(1);
   });
 });

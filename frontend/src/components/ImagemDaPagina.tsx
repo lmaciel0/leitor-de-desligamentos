@@ -27,7 +27,7 @@ export function ImagemDaPagina({ idDoRegistro, arquivo }: Props) {
       <img
         src={imagem}
         alt={`Página do PDF ${arquivo}`}
-        className={`rounded border border-denim/30 bg-white ${ampliada ? 'max-w-[min(100%,64rem)]' : 'max-h-56 max-w-full'}`}
+        className={`rounded border border-linha bg-white ${ampliada ? 'max-w-[min(100%,64rem)]' : 'max-h-56 max-w-full'}`}
       />
     </div>
   );

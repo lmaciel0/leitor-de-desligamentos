@@ -31,4 +31,19 @@ describe('ZonaUpload', () => {
     fireEvent.drop(zona, { dataTransfer: { files: [pdf('a.pdf'), texto] } });
     expect(onAdicionar.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.pdf', 'nota.txt']);
   });
+
+  it('arrastar por cima deixa a borda coral e soltar desfaz', () => {
+    render(<ZonaUpload arquivos={[]} onAdicionar={() => {}} onRemover={() => {}} />);
+    const zona = screen.getByTestId('zona-upload');
+    expect(zona).not.toHaveClass('border-coral');
+    fireEvent.dragOver(zona);
+    expect(zona).toHaveClass('border-coral');
+    fireEvent.drop(zona, { dataTransfer: { files: [] } });
+    expect(zona).not.toHaveClass('border-coral');
+  });
+
+  it('o ícone fica num quadrado coral claro', () => {
+    render(<ZonaUpload arquivos={[]} onAdicionar={() => {}} onRemover={() => {}} />);
+    expect(screen.getByTestId('zona-upload').querySelector('.bg-coral-claro.text-coral-texto')).not.toBeNull();
+  });
 });

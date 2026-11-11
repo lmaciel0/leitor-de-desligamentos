@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { guardarImagem, limparImagens } from '../lib/ocr/imagens';
 import type { DesligamentoRecord } from '../tipos';
 import { TabelaResultados } from './TabelaResultados';
+import codigoDoComponente from './TabelaResultados.tsx?raw';
 
 function registro(parcial: Partial<DesligamentoRecord>): DesligamentoRecord {
   return {
@@ -133,5 +134,32 @@ describe('TabelaResultados', () => {
   it('explica quando nenhum registro corresponde aos filtros', () => {
     render(<TabelaResultados {...acoes} registros={[]} />);
     expect(screen.getByText('Nenhum registro corresponde aos filtros.')).toBeInTheDocument();
+  });
+
+  it('etiqueta OK mostra o texto exato "OK" em formato de etiqueta', () => {
+    render(<TabelaResultados {...acoes} registros={[registro({})]} />);
+    const etiqueta = screen.getByText('OK');
+    expect(etiqueta).toHaveClass('bg-ok-fundo', 'rounded-full');
+    expect(etiqueta).not.toHaveClass('animate-pulso-coral');
+  });
+
+  it('etiqueta Revisar mostra "Revisar · N", pulsa, e o botão mantém o nome acessível', () => {
+    const revisar = registro({ status: 'REVISAR', inconsistencias: ['CPF', 'NIS'], cpf: '', nis: '' });
+    render(<TabelaResultados {...acoes} registros={[revisar]} />);
+    const etiqueta = screen.getByText('Revisar · 2');
+    expect(etiqueta).toHaveClass('animate-pulso-coral', 'bg-coral-claro', 'rounded-full');
+    const botao = screen.getByRole('button', { name: 'REVISAR2 pendências' });
+    expect(botao).toContainElement(etiqueta);
+  });
+
+  it('toda linha de registro entra com animate-entrar', () => {
+    render(<TabelaResultados {...acoes} registros={[registro({}), registro({ id: 2, arquivo: 'b.pdf', status: 'REVISAR', inconsistencias: ['CPF'] })]} />);
+    for (const arquivo of ['a.pdf', 'b.pdf']) {
+      expect(screen.getByLabelText(`CPF de ${arquivo}`).closest('tr')).toHaveClass('animate-entrar');
+    }
+  });
+
+  it('o movimento é só CSS: o componente não usa setInterval nem setTimeout', () => {
+    expect(codigoDoComponente).not.toMatch(/setInterval|setTimeout/);
   });
 });

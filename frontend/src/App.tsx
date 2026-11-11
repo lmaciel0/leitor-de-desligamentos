@@ -2,16 +2,20 @@ import { FolderOpen, LoaderCircle, Play, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvisoReprocessar } from './components/AvisoReprocessar';
 import { BarraExportar } from './components/BarraExportar';
-import { BarraTriagem } from './components/BarraTriagem';
-import { BotaoTema } from './components/BotaoTema';
+import { BoasVindas } from './components/BoasVindas';
+import { Cabecalho } from './components/Cabecalho';
 import { Filtros } from './components/Filtros';
+import { PainelNumeros } from './components/PainelNumeros';
 import { TabelaResultados } from './components/TabelaResultados';
 import { ZonaUpload } from './components/ZonaUpload';
 import { ehPdf, separarDuplicados } from './lib/arquivos';
+import { soltarConfete } from './lib/confete';
+import { etapaAtual } from './lib/etapa';
 import { baixarBlob } from './lib/exportar/baixar';
 import { conferirRegistro, normalizarCampo, recalcular } from './lib/parser/campos';
 import { limparImagens } from './lib/ocr/imagens';
 import { processarLote } from './lib/processar';
+import { contarRevisao, marcarRevisao } from './lib/revisao';
 import { aplicarTema, salvarTema, temaInicial, type Tema } from './lib/tema';
 import { descreverData, gerarTrabalho, lerTrabalho, nomeDoArquivoDeTrabalho } from './lib/trabalho';
 import type { CampoConferencia, CampoEditavel, DesligamentoRecord, Status } from './tipos';
@@ -25,6 +29,9 @@ function valoresUnicos(registros: DesligamentoRecord[], campo: 'municipio' | 'mo
 
 /** Um trabalho de 5000 registros fica bem abaixo disso; acima, nem tentamos ler. */
 const MAX_MB_TRABALHO = 50;
+
+/** De onde veio o lote atual; só o lote vindo de processar solta confete já com 0 REVISAR. */
+type OrigemDoLote = 'processar' | 'trabalho' | 'limpar';
 
 type TrabalhoLido = ReturnType<typeof lerTrabalho>;
 
@@ -48,6 +55,10 @@ function avisoDeArquivos(repetidos: File[], naoPdf: File[]): string {
 export default function App() {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [registros, setRegistros] = useState<DesligamentoRecord[]>([]);
+  /** Número do lote atual: sobe ao terminar de processar, abrir trabalho e limpar os dados. */
+  const [lote, setLote] = useState(0);
+  /** Vira true ao baixar XLSX/CSV; qualquer edição, novo lote, trabalho aberto ou limpeza volta a false. */
+  const [exportado, setExportado] = useState(false);
   const [municipios, setMunicipios] = useState<string[]>([]);
   const [motivos, setMotivos] = useState<string[]>([]);
   const [statusAtivo, setStatusAtivo] = useState<Status | null>(null);
@@ -65,10 +76,33 @@ export default function App() {
   const controladorRef = useRef<AbortController | null>(null);
   const botaoProcessar = useRef<HTMLButtonElement>(null);
   const entradaTrabalho = useRef<HTMLInputElement>(null);
+  const tituloBoasVindas = useRef<HTMLHeadingElement>(null);
+  /** Confete: um disparo por lote. `origem` é gravada junto de cada setLote; o resto é avaliado no efeito abaixo. */
+  const confete = useRef<{ lote: number; origem: OrigemDoLote; jaSoltou: boolean; revisarAnterior: number }>({
+    lote: 0,
+    origem: 'limpar',
+    jaSoltou: false,
+    revisarAnterior: 0,
+  });
+  /** Foco a entregar quando a tela trocar entre boas-vindas e faixa compacta (senão ele cairia no body). */
+  const focoPendente = useRef<'processar' | 'boasvindas' | 'trabalho' | null>(null);
 
   useEffect(() => {
     aplicarTema(tema);
   }, [tema]);
+
+  /** Sem PDFs, sem resultados e sem lote em andamento: só as boas-vindas. */
+  const inicial = arquivos.length === 0 && registros.length === 0 && !carregando;
+
+  // A troca de tela desmonta o elemento focado: leva o foco ao destino combinado (WCAG 2.4.3).
+  useEffect(() => {
+    const destino = focoPendente.current;
+    if (destino === 'processar' && !inicial) botaoProcessar.current?.focus();
+    else if (destino === 'boasvindas' && inicial) tituloBoasVindas.current?.focus();
+    else if (destino === 'trabalho' && !inicial) entradaTrabalho.current?.focus();
+    else return;
+    focoPendente.current = null;
+  }, [inicial]);
 
   function alternarTema() {
     const proximo: Tema = tema === 'escuro' ? 'claro' : 'escuro';
@@ -91,6 +125,23 @@ export default function App() {
 
   const totalOk = registros.filter((registro) => registro.status === 'OK').length;
   const totalRevisar = registros.length - totalOk;
+  const revisao = useMemo(() => contarRevisao(registros), [registros]);
+
+  useEffect(() => {
+    const estado = confete.current;
+    const anterior = estado.revisarAnterior;
+    estado.revisarAnterior = totalRevisar;
+    if (estado.lote !== lote) {
+      // Lote novo: só o que acabou de ser processado e já está sem REVISAR conta como conclusão nesta sessão.
+      estado.lote = lote;
+      estado.jaSoltou = estado.origem === 'processar' && registros.length > 0 && totalRevisar === 0;
+    } else if (!estado.jaSoltou && anterior > 0 && totalRevisar === 0) {
+      estado.jaSoltou = true;
+    } else {
+      return;
+    }
+    if (estado.jaSoltou) soltarConfete();
+  }, [lote, totalRevisar, registros.length]);
 
   function zerarFiltros() {
     setMunicipios([]);
@@ -103,8 +154,15 @@ export default function App() {
     const pdfs = novos.filter(ehPdf);
     const naoPdf = novos.filter((arquivo) => !ehPdf(arquivo));
     const { aceitos, repetidos } = await separarDuplicados(arquivos, pdfs);
+    if (inicial && aceitos.length > 0) focoPendente.current = 'processar';
     setArquivos((atuais) => [...atuais, ...aceitos]);
     setAviso(avisoDeArquivos(repetidos, naoPdf));
+  }
+
+  function removerArquivo(indice: number) {
+    // Tirar o último PDF sem resultados volta às boas-vindas; o botão focado some, então o foco vai ao título.
+    if (arquivos.length === 1 && registros.length === 0) focoPendente.current = 'boasvindas';
+    setArquivos((atuais) => atuais.filter((_, posicao) => posicao !== indice));
   }
 
   /** Se já há resultados, reprocessar os substitui e descarta as edições: pede confirmação antes. */
@@ -128,6 +186,7 @@ export default function App() {
       setErro('Selecione ao menos um PDF.');
       return;
     }
+    setExportado(false);
     controladorRef.current?.abort();
     const controlador = new AbortController();
     controladorRef.current = controlador;
@@ -150,7 +209,9 @@ export default function App() {
         },
       });
       if (controlador.signal.aborted) return;
-      setRegistros(resultado);
+      setRegistros(marcarRevisao(resultado));
+      confete.current.origem = 'processar';
+      setLote((atual) => atual + 1);
       setEditadas(new Set());
       zerarFiltros();
       const ok = resultado.filter((registro) => registro.status === 'OK').length;
@@ -198,8 +259,13 @@ export default function App() {
     setEtapa('');
     limparImagens();
     setTrabalhoPendente(null);
+    setExportado(false);
     setArquivos([]);
-    setRegistros(lidos);
+    // Das boas-vindas, o input focado desmonta com a troca de tela: o foco vai ao input da faixa compacta.
+    if (inicial && lidos.length > 0) focoPendente.current = 'trabalho';
+    setRegistros(marcarRevisao(lidos));
+    confete.current.origem = 'trabalho';
+    setLote((atual) => atual + 1);
     setEditadas(new Set());
     zerarFiltros();
     // O aviso visível já é uma região status (anunciada); não repetir na região só para leitores de tela.
@@ -213,6 +279,7 @@ export default function App() {
   }
 
   function limpar() {
+    focoPendente.current = 'boasvindas';
     controladorRef.current?.abort();
     controladorRef.current = null;
     setCarregando(false);
@@ -222,6 +289,9 @@ export default function App() {
     setTrabalhoPendente(null);
     setArquivos([]);
     setRegistros([]);
+    setExportado(false);
+    confete.current.origem = 'limpar';
+    setLote((atual) => atual + 1);
     setEditadas(new Set());
     setProgresso({ feitos: 0, total: 0 });
     setErro('');
@@ -231,74 +301,113 @@ export default function App() {
   }
 
   function editar(id: number, campo: CampoEditavel, valor: string) {
+    setExportado(false);
     setEditadas((atuais) => new Set(atuais).add(id));
     setRegistros((atuais) =>
-      atuais.map((registro) => (registro.id === id ? recalcular({ ...registro, [campo]: normalizarCampo(campo, valor) }) : registro)),
+      atuais.map((registro) =>
+        registro.id === id ? marcarRevisao([recalcular({ ...registro, [campo]: normalizarCampo(campo, valor) })])[0] : registro,
+      ),
     );
   }
 
   /** As marcações de conferência são do operador: só "validado" de um registro de OCR muda o status, e todas contam como edição ao reprocessar. */
   function conferir(id: number, campo: CampoConferencia, marcado: boolean) {
+    setExportado(false);
     setEditadas((atuais) => new Set(atuais).add(id));
-    setRegistros((atuais) => atuais.map((registro) => (registro.id === id ? conferirRegistro(registro, campo, marcado) : registro)));
+    setRegistros((atuais) =>
+      atuais.map((registro) => (registro.id === id ? marcarRevisao([conferirRegistro(registro, campo, marcado)])[0] : registro)),
+    );
   }
 
+  const avisoVisivel = aviso ? (
+    <p role="status" className="mt-3 text-sm text-forte">
+      {aviso}
+    </p>
+  ) : null;
+
   return (
-    <div className="min-h-screen bg-papel">
-      <header className="bg-eclipse text-white">
-        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-6 md:flex-row md:items-end md:justify-between md:px-10">
-          <h1 className="text-3xl md:text-4xl">Leitor de desligamentos</h1>
-          <div className="flex flex-col gap-3 md:items-end">
-            <BotaoTema escuro={tema === 'escuro'} onAlternar={alternarTema} />
-            <p className="text-sm text-white/80">Seus PDFs não saem deste computador.</p>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen">
+      <Cabecalho
+        etapa={etapaAtual({ arquivos: arquivos.length, registros: registros.length, carregando, exportado })}
+        processando={carregando}
+        escuro={tema === 'escuro'}
+        onAlternarTema={alternarTema}
+      />
 
       <main className="mx-auto max-w-[1400px] px-4 pb-8 pt-6 md:px-10">
-        <ZonaUpload
-          arquivos={arquivos}
-          onAdicionar={adicionar}
-          onRemover={(indice) => setArquivos((atuais) => atuais.filter((_, posicao) => posicao !== indice))}
-        />
-        {aviso && (
-          <p role="status" className="mt-3 text-sm text-forte">
-            {aviso}
-          </p>
-        )}
+        {inicial ? (
+          <>
+            <BoasVindas onAdicionar={adicionar} onAbrirTrabalho={(arquivo) => void escolherTrabalho(arquivo)} entradaTrabalho={entradaTrabalho} tituloRef={tituloBoasVindas} />
+            {avisoVisivel}
+          </>
+        ) : (
+          <>
+            <ZonaUpload
+              arquivos={arquivos}
+              onAdicionar={adicionar}
+              onRemover={removerArquivo}
+            />
+            {avisoVisivel}
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button ref={botaoProcessar} type="button" className="botao-primario" onClick={pedirProcessamento} disabled={carregando}>
-            {carregando ? <LoaderCircle className="animate-spin" size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
-            {carregando ? `Processando ${progresso.feitos} de ${progresso.total}` : 'Processar arquivos'}
-          </button>
-          <button type="button" className="botao-secundario" onClick={limpar}>
-            <Trash2 size={16} aria-hidden="true" />
-            Limpar dados
-          </button>
-          <div className="flex flex-col gap-3 sm:ml-auto sm:flex-row">
-            <label className="botao-secundario cursor-pointer focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-denim">
-              <FolderOpen size={16} aria-hidden="true" />
-              Abrir trabalho
-              <input
-                ref={entradaTrabalho}
-                type="file"
-                accept="application/json,.json"
-                className="sr-only"
-                aria-label="Abrir trabalho"
-                onChange={(evento) => {
-                  void escolherTrabalho(evento.target.files?.[0]);
-                  evento.target.value = '';
-                }}
-              />
-            </label>
-            <button type="button" className="botao-secundario" onClick={salvarTrabalho} disabled={registros.length === 0}>
-              <Save size={16} aria-hidden="true" />
-              Salvar trabalho
-            </button>
-          </div>
-        </div>
-        {carregando && etapa && <p className="mt-3 text-sm text-suave">{etapa}</p>}
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative">
+                <button ref={botaoProcessar} type="button" className="botao-primario w-full sm:w-auto" onClick={pedirProcessamento} disabled={carregando}>
+                  {carregando ? <LoaderCircle className="animate-spin" size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
+                  {carregando ? `Processando ${progresso.feitos} de ${progresso.total}` : 'Processar arquivos'}
+                </button>
+                {carregando && (
+                  <div
+                    role="progressbar"
+                    aria-label="Progresso do processamento"
+                    aria-valuemin={0}
+                    aria-valuemax={progresso.total}
+                    aria-valuenow={progresso.feitos}
+                    className="absolute inset-x-0 -bottom-2 h-[3px] overflow-hidden rounded-full bg-linha"
+                  >
+                    <div
+                      className="h-full rounded-full bg-coral transition-[width] ease-[var(--curva)] [transition-duration:var(--duracao-media)]"
+                      style={{ width: `${progresso.total > 0 ? Math.min(100, (progresso.feitos / progresso.total) * 100) : 0}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+              <button type="button" className="botao-secundario" onClick={limpar}>
+                <Trash2 size={16} aria-hidden="true" />
+                Limpar dados
+              </button>
+              <div className="flex flex-col gap-3 sm:ml-auto sm:flex-row">
+                <label className="botao-secundario cursor-pointer focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-anel">
+                  <FolderOpen size={16} aria-hidden="true" />
+                  Abrir trabalho
+                  <input
+                    ref={entradaTrabalho}
+                    type="file"
+                    accept="application/json,.json"
+                    className="sr-only"
+                    aria-label="Abrir trabalho"
+                    onChange={(evento) => {
+                      void escolherTrabalho(evento.target.files?.[0]);
+                      evento.target.value = '';
+                    }}
+                  />
+                </label>
+                <button type="button" className="botao-secundario" onClick={salvarTrabalho} disabled={registros.length === 0}>
+                  <Save size={16} aria-hidden="true" />
+                  Salvar trabalho
+                </button>
+              </div>
+            </div>
+            {/* Fica montada enquanto a faixa compacta existe; só o conteúdo muda, para os leitores de tela anunciarem a etapa. */}
+            <div role="status" data-testid="etapa-status">
+              {carregando && etapa && (
+                <div className="mt-4 flex items-center gap-3 rounded-cartao border border-linha bg-superficie p-3 text-sm text-forte shadow-cartao">
+                  <LoaderCircle className="shrink-0 animate-spin text-coral-texto" size={18} aria-hidden="true" />
+                  <span>{etapa}</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
         {confirmando && (
           <AvisoReprocessar linhasEditadas={editadas.size} onConfirmar={() => void processar()} onCancelar={cancelarReprocesso} />
         )}
@@ -316,18 +425,20 @@ export default function App() {
           {anuncio}
         </p>
         {erro && (
-          <p role="alert" className="mt-3 text-sm font-medium text-tijolo">
+          <p role="alert" className="mt-3 text-sm font-medium text-coral-texto">
             {erro}
           </p>
         )}
 
-        {registros.length === 0 ? (
-          <p className="mt-10 text-sm text-suave">Escolha um ou mais PDFs e clique em Processar arquivos.</p>
-        ) : (
+        {registros.length > 0 && (
           <section className="mt-8 space-y-4" aria-label="Resultados">
-            <BarraTriagem
+            <PainelNumeros
+              total={registros.length}
               ok={totalOk}
               revisar={totalRevisar}
+              conferidos={revisao.conferidos}
+              totalRevisao={revisao.total}
+              lote={lote}
               statusAtivo={statusAtivo}
               onAlternar={(status) => setStatusAtivo((atual) => (atual === status ? null : status))}
             />
@@ -350,7 +461,7 @@ export default function App() {
         )}
       </main>
 
-      {registros.length > 0 && <BarraExportar registros={registros} onErro={setErro} />}
+      {registros.length > 0 && <BarraExportar registros={registros} onErro={setErro} onExportado={() => setExportado(true)} />}
     </div>
   );
 }

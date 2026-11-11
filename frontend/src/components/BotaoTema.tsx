@@ -5,17 +5,17 @@ interface Props {
   onAlternar: () => void;
 }
 
-/** Botão de alternância: o nome fica sempre "Modo escuro" e o estado vai em aria-pressed. */
+/** Botão só com ícone: o nome acessível fica sempre "Modo escuro" e o estado vai em aria-pressed. */
 export function BotaoTema({ escuro, onAlternar }: Props) {
   return (
     <button
       type="button"
+      aria-label="Modo escuro"
       aria-pressed={escuro}
       onClick={onAlternar}
-      className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-white/70 px-4 text-sm font-semibold text-white hover:bg-white/10"
+      className="grid h-10 w-10 place-items-center rounded-lg border border-linha bg-superficie text-forte transition-colors duration-[var(--duracao-curta)] hover:bg-superficie-alt"
     >
-      {escuro ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
-      Modo escuro
+      {escuro ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
     </button>
   );
 }

@@ -17,7 +17,9 @@ Extrai, revisa e exporta dados de formulários PDF de desligamento do Cartão Ma
 - Status automático `OK` ou `REVISAR`, com a lista de pendências de cada linha. Viram `REVISAR`: CPF que não tem 11 dígitos (por exemplo, erro de digitação no PDF), CPF ou NIS com dígito verificador errado, e motivo `OUTRO` sem o detalhe (que costuma ser manuscrito), para você digitar o detalhe na tabela.
 - Limites por arquivo: PDF com mais de 20 MB, mais de 10 páginas ou que leve mais de 20 s para ser lido vira `REVISAR` com o motivo, e o resto do lote continua.
 - **Salvar trabalho / Abrir trabalho:** guarda os registros (com edições e conferências) num arquivo `.json` que você salva onde quiser, para continuar depois. Nada fica guardado no navegador. O arquivo contém CPF e NIS: guarde-o em local seguro.
-- Barra de triagem que filtra por status, e filtros por município e motivo.
+- Linha de etapas no topo (Enviar, Processar, Revisar, Exportar) mostrando em que passo o trabalho está.
+- Painel de números com o total lido, os cartões `OK` e `REVISAR` (que filtram a tabela por status) e o progresso da revisão ("X de Y conferidos"). Também há filtros por município e motivo.
+- Um confete curto quando a revisão do lote termina. Com "reduzir movimento" ligado no sistema, nenhuma animação roda.
 - Download em XLSX, CSV UTF-8 separado por ponto e vírgula e XLSX só com os registros `REVISAR`. Prefira o XLSX: ao abrir um CSV no Excel, os zeros à esquerda se perdem.
 - Processar de novo, com resultados na tela, pede confirmação: o reprocessamento substitui os resultados e descarta as edições manuais.
 - Modo escuro: botão no cabeçalho. Na primeira visita segue o tema do sistema; depois lembra a sua escolha neste navegador (só o tema fica guardado).
@@ -31,7 +33,7 @@ Nenhum dado sai do computador. O site é estático, o CSP (`frontend/vercel.json
 
 ## Stack
 
-React 18, TypeScript, Vite, Tailwind CSS, `pdfjs-dist` (leitura de PDF, build legacy), `tesseract.js` (OCR de PDFs escaneados), `write-excel-file` (XLSX), Vitest, Playwright + axe-core (testes no navegador), ESLint.
+React 18, TypeScript, Vite, Tailwind CSS, `pdfjs-dist` (leitura de PDF, build legacy), `tesseract.js` (OCR de PDFs escaneados), `write-excel-file` (XLSX), `canvas-confetti` (confete), Vitest, Playwright + axe-core (testes no navegador), ESLint.
 
 ## Como executar
 
