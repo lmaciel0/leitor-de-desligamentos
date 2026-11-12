@@ -9,7 +9,8 @@
 const ROTULO_NIS_APOS_NIB =
   /(\bNIB\s*:\s*\d[\d.-]*\s+\|?)(?=[\dA-Za-zÀ-ÿ]{0,4}[A-Za-zÀ-ÿ])[\dA-Za-zÀ-ÿ]{2,5}(\s*:\s*)(?=\d{11}(?!\d))/u;
 
-// Caixa vazia lida como "(/ )": vira "( )". Marcas com traço ("(/x)", "(x/)") não casam.
+// Caixa vazia lida como "(/ )": vira "( )". Aceita espaços antes da barra ("( / )"), ainda caixa vazia.
+// Marcas com traço ("(/x)", "(x/)") não casam.
 const CAIXA_VAZIA_COM_BARRA = /\(\s*\/\s*\)/gu;
 
 // Marcador de motivo com a barra no lugar do parêntese final, só no começo da linha.

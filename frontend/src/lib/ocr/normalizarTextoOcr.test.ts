@@ -102,4 +102,14 @@ describe('normalizarTextoOcr', () => {
     ].join('\n');
     expect(parseText(normalizarTextoOcr(bloco)).motivo).toBe('Mudança para outro Município');
   });
+
+  it('OUTRO marcado sem detalhe não pega a linha (/ ) seguinte como detalhe', () => {
+    const bloco = [
+      'MOTIVO DO DESLIGAMENTO:',
+      '|( x) OUTRO: |',
+      '1(/ ) Renda familiar mensal per capita superior;',
+      'DATA EM QUE SAIU DO PERFIL DO CMIC: 24/04/2026',
+    ].join('\n');
+    expect(parseText(normalizarTextoOcr(bloco)).motivo).toBe('OUTRO');
+  });
 });
