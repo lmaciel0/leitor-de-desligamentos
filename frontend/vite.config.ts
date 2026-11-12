@@ -34,4 +34,9 @@ function cabecalhosDaVercel(): Plugin {
 export default defineConfig({
   plugins: [react(), cabecalhosDaVercel()],
   server: { port: 5173 },
+  build: {
+    // O único chunk acima de 500 kB é o pdfjs, carregado sob demanda por src/lib/pdf/carregarPdfjs.ts.
+    // O limite fica logo acima dele para um chunk novo e grande ainda avisar.
+    chunkSizeWarningLimit: 600,
+  },
 });
