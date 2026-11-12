@@ -124,6 +124,7 @@ export interface ExtrasDoArquivo {
  * (`OCR_CARGA_MS`) e, com o modelo carregado, o orçamento pelas páginas. Estourar um deles ou
  * cancelar o lote durante o OCR descarta o motor de OCR e o worker do pdf.js que este arquivo usou.
  * Lote cancelado antes de o OCR começar não descarta nada: o lote seguinte pode já estar usando os dois.
+ * Limite excedido (ex.: páginas demais) só descarta o motor se ele já tinha começado a ler (`aoComecar`).
  */
 async function registroDoOcr(
   arquivo: File,
@@ -139,6 +140,8 @@ async function registroDoOcr(
   let prazo: ReturnType<typeof setTimeout> | undefined;
   /** O que este arquivo usa: só isso é descartado se ele estourar o tempo ou for cancelado. */
   let emUso: { worker: Worker | null; geracao: number } | null = null;
+  /** Marcado quando o OCR começa a ler: antes disso, um limite excedido não tem motor para culpar. */
+  let motorPronto = false;
   const cancelarPeloLote = () => relogio.abort(new LimiteExcedido(MENSAGEM_LOTE_CANCELADO));
   if (sinalDoLote?.aborted) cancelarPeloLote();
   else sinalDoLote?.addEventListener('abort', cancelarPeloLote, { once: true });
@@ -154,6 +157,7 @@ async function registroDoOcr(
       maxPaginas,
       sinal: relogio.signal,
       aoComecar: (total) => {
+        motorPronto = true;
         clearTimeout(prazoDaCarga);
         const orcamento = orcamentoOcrMs(total);
         prazo = setTimeout(() => relogio.abort(new LimiteExcedido(mensagemDeTempo(orcamento))), orcamento);
@@ -179,7 +183,7 @@ async function registroDoOcr(
   } catch (erro) {
     if (emUso && relogio.signal.aborted) {
       await Promise.all([trocarMotorOcr(ocr, emUso.geracao), trocarWorker(emUso.worker)]);
-    } else if (emUso && erro instanceof LimiteExcedido) {
+    } else if (emUso && motorPronto && erro instanceof LimiteExcedido) {
       await trocarMotorOcr(ocr, emUso.geracao);
     }
     throw erro;
