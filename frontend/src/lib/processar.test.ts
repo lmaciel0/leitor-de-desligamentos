@@ -208,11 +208,31 @@ describe('processarArquivo com PDF escaneado (OCR)', () => {
     expect(lerPorOcr).not.toHaveBeenCalled();
   });
 
-  it('limite excedido no OCR vira registro vazio com a mensagem e reinicia o motor', async () => {
+  it('limite excedido no OCR com o motor pronto vira registro vazio e reinicia o motor', async () => {
+    vi.mocked(lerPorOcr).mockImplementation(async (_pdf, opcoes) => {
+      opcoes.aoComecar?.(1);
+      throw new LimiteExcedido('página inválida');
+    });
+    const registro = await processarArquivo(1, await escaneado(), '09/10/2026');
+    expect(registro).toMatchObject({ status: 'REVISAR', inconsistencias: ['página inválida'] });
+    expect(reiniciarOcr).toHaveBeenCalledTimes(1);
+  });
+
+  it('PDF escaneado com páginas demais vira registro vazio sem descartar o motor', async () => {
     vi.mocked(lerPorOcr).mockRejectedValue(new LimiteExcedido('PDF com mais de 10 páginas'));
     const registro = await processarArquivo(1, await escaneado(), '09/10/2026');
     expect(registro).toMatchObject({ status: 'REVISAR', inconsistencias: ['PDF com mais de 10 páginas'] });
-    expect(reiniciarOcr).toHaveBeenCalledTimes(1);
+    expect(reiniciarOcr).not.toHaveBeenCalled();
+  });
+
+  it('escaneado com páginas demais não atrapalha o escaneado seguinte', async () => {
+    vi.mocked(lerPorOcr)
+      .mockRejectedValueOnce(new LimiteExcedido('PDF com mais de 10 páginas'))
+      .mockResolvedValueOnce({ texto: TEXTO_DO_FORMULARIO, imagem: null });
+    const registros = await processarLote([await escaneado(), await escaneado()], new Date(2026, 9, 9));
+    expect(registros[0].inconsistencias).toEqual(['PDF com mais de 10 páginas']);
+    expect(registros[1].lidoPorOcr).toBe(true);
+    expect(reiniciarOcr).not.toHaveBeenCalled();
   });
 
   it('outra falha do OCR vira "erro de processamento"', async () => {

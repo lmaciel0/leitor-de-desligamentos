@@ -23,6 +23,7 @@ function criarMotor(): Promise<WorkerDoOcr> {
     falharAoCarregar = rejeitar;
   });
   // Só a rede LSTM: é o que o modelo `por` (best_int) traz.
+  // Com LSTM_ONLY só os núcleos -lstm são usados: ver `nucleos` em scripts/copiar-ocr.mjs.
   const trabalhador = createWorker('por', OEM.LSTM_ONLY, {
     ...OPCOES_DO_WORKER,
     // O tesseract.js 5 engole a falha ao carregar o idioma ou iniciar (ex.: `por.traineddata.gz`

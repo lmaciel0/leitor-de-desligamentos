@@ -14,9 +14,10 @@ const modulos = join(raiz, 'node_modules');
 const destino = join(raiz, 'public', 'ocr');
 
 // O worker carrega só os *.wasm.js (WASM embutido); .wasm e .js soltos não são usados.
+// O app usa OEM.LSTM_ONLY (src/lib/ocr/motorOcr.ts) e, nesse modo, o worker só pede as variantes
+// -lstm (com e sem SIMD). Trocar o OEM exige voltar os 4 núcleos (tesseract-core.wasm.js e
+// tesseract-core-simd.wasm.js, além dos dois -lstm).
 const nucleos = [
-  'tesseract-core.wasm.js',
-  'tesseract-core-simd.wasm.js',
   'tesseract-core-lstm.wasm.js',
   'tesseract-core-simd-lstm.wasm.js',
 ];
